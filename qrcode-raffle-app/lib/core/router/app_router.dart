@@ -64,7 +64,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // If on splash and auth is determined, redirect appropriately
       if (currentPath == '/' && !isLoading) {
-        return isLoggedIn ? '/home' : '/qr-scanner';
+        return '/home'; // Always go to home for demo
       }
 
       return null;

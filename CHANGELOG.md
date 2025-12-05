@@ -11,17 +11,53 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 - **Sistema de Eventos Completo**
   - Gerenciamento de eventos com trilhas e palestras
-  - Presenças por palestra com duração calculada
+  - Presencas por palestra com duracao calculada
   - Timeline visual do evento
-  - Import CSV para trilhas, palestras e presenças
+  - Import CSV para trilhas, palestras e presencas
+  - Paginas `/admin/events` e `/admin/events/[id]`
 - **Tipos de Sorteio**
-  - Sorteio de Evento (participantes de todas palestras)
+  - Sorteio de Evento (participantes de todas palestras com filtro de tempo minimo)
   - Sorteio de Palestra (via QR Code)
-- **Wizard de Criação** - Assistente em 3 passos
-- **Countdown Duplo** - "Abre em" / "Encerra em"
-- **Sorteio Automático** ao fim do countdown
-- **Display Grandioso** para sorteios de evento
-- **Ações em Tempo Real** - Display reflete admin actions
+- **Wizard de Criacao de Sorteio** - Assistente em 3 passos
+  - Passo 1: Escolha do tipo (Evento ou Palestra)
+  - Passo 2: Configuracao (tempo minimo ou selecao de palestra)
+  - Passo 3: Detalhes do premio e opcoes avancadas
+- **Countdown Duplo** - "Abre em" antes do inicio, "Encerra em" durante o periodo
+- **Sorteio Automatico** ao fim do countdown (`autoDrawOnEnd`)
+- **Inscricao por Link** - Toggle para permitir inscricao via QR Code em sorteios de evento
+- **Display Grandioso para Eventos** - Layout especial com trofeu animado e contador de participantes
+- **Acoes Admin em Tempo Real** - Display reflete imediatamente acoes do admin
+- **Novos Componentes UI**
+  - Checkbox, Radio Group, Select, Switch, Tooltip
+  - Event Form Dialog, Event Wizard Dialog
+  - Raffle Wizard Dialog, Talk Form Dialog, Track Form Dialog
+  - CSV Upload Dialogs (trilhas, palestras, presencas)
+  - Attendance List Dialog, Delete Confirmation Dialog
+  - Event Timeline
+- **Novas APIs**
+  - `/api/events` - CRUD de eventos
+  - `/api/tracks` - CRUD de trilhas
+  - `/api/talks` - CRUD de palestras
+  - `/api/talks/[id]/attendance` - Gerenciar presencas
+  - `/api/ranking/events` - Eventos para ranking
+  - `/api/ranking/tracks` - Trilhas de um evento
+  - `/api/ranking/create-raffle` - Criar sorteio a partir do ranking
+  - `/api/events/[id]/eligible-count` - Contagem de participantes elegiveis
+- **Utilitario CSV** - `src/lib/csv.ts` com funcoes de parse e validacao
+
+### Alterado
+
+- Schema Prisma atualizado com modelos Event, Track, Talk e TalkAttendance
+- Raffle agora suporta vinculo com Event e Talk
+- Polling continua durante fase de celebracao para detectar acoes do admin
+- Interface Track atualizada com `startDate/endDate`
+- README principal do monorepo revisado com documentacao completa
+
+### Removido
+
+- Pagina `/admin/new` (substituida pelo wizard)
+- Scripts de migracao obsoletos (`migrate-raffles.ts`, `migrate-nava-summit.ts`)
+- Endpoint `/api/tracks/[id]/attendance` (presencas sao por Talk)
 
 ---
 

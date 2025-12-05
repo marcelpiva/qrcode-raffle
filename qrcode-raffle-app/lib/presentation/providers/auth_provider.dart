@@ -60,9 +60,33 @@ class AuthNotifier extends StateNotifier<AsyncValue<AuthState>> {
           return;
         }
       }
-      state = const AsyncValue.data(AuthState());
+      // Demo mode: simulate logged in admin user
+      final demoUser = User(
+        id: 'demo-user-1',
+        name: 'Admin Demo',
+        email: 'admin@qrcoderaffle.com',
+        role: UserRole.admin,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      state = AsyncValue.data(AuthState(
+        user: demoUser,
+        isAuthenticated: true,
+      ));
     } catch (e) {
-      state = const AsyncValue.data(AuthState());
+      // Demo mode fallback
+      final demoUser = User(
+        id: 'demo-user-1',
+        name: 'Admin Demo',
+        email: 'admin@qrcoderaffle.com',
+        role: UserRole.admin,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      state = AsyncValue.data(AuthState(
+        user: demoUser,
+        isAuthenticated: true,
+      ));
     }
   }
 
