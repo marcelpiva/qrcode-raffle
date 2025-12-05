@@ -18,16 +18,30 @@ model Raffle {
   winnerId            String?
   createdAt           DateTime  @default(now())
   closedAt            DateTime?
-  // Timebox feature
-  timeboxMinutes      Int?      // Duration in minutes (optional)
-  endsAt              DateTime? // Calculated: createdAt + timeboxMinutes
+  // Schedule feature
+  startsAt            DateTime? // When raffle opens for registration
+  endsAt              DateTime? // When raffle closes automatically
+  autoDrawOnEnd       Boolean   @default(false) // Automatically draw winner when endsAt is reached
   // PIN confirmation feature
   requireConfirmation        Boolean @default(false) // Require winner to confirm with PIN
   confirmationTimeoutMinutes Int?    // Timeout in minutes for winner confirmation (auto-redraw if expired)
+  // Event/Talk linking
+  eventId             String?   // Optional link to event
+  talkId              String?   // Optional link to talk
+  // Eligibility filter for event-level raffles
+  minDurationMinutes  Int?      // Minimum attendance duration per talk in minutes
+  minTalksCount       Int?      // Minimum number of talks attended with required duration
+  // Link registration (for event raffles)
+  allowLinkRegistration Boolean @default(false) // Allow registration via QR/link (event raffles only)
 
   participants Participant[]
   winner       Participant?  @relation("Winner", fields: [winnerId], references: [id])
   drawHistory  DrawHistory[]
+  event        Event?        @relation("EventRaffles", fields: [eventId], references: [id])
+  talk         Talk?         @relation("TalkRaffles", fields: [talkId], references: [id])
+
+  @@index([eventId])
+  @@index([talkId])
 }
 
 model Participant {
@@ -58,4 +72,64 @@ model DrawHistory {
   participant Participant @relation(fields: [participantId], references: [id])
 
   @@index([raffleId])
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  name        String
+  startDate   DateTime
+  endDate     DateTime
+  speakers    String?  // Palestrantes gerais (texto livre)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tracks      Track[]
+  raffles     Raffle[] @relation("EventRaffles")
+}
+
+model Track {
+  id          String   @id @default(cuid())
+  eventId     String
+  title       String
+  startDate   DateTime  // Data de início da trilha
+  endDate     DateTime  // Data de fim da trilha
+  createdAt   DateTime @default(now())
+
+  event       Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  talks       Talk[]
+
+  @@index([eventId])
+}
+
+model Talk {
+  id          String    @id @default(cuid())
+  trackId     String
+  title       String
+  speaker     String?
+  startTime   DateTime?  // Horário de início da palestra
+  endTime     DateTime?  // Horário de fim da palestra
+  description String?
+  createdAt   DateTime  @default(now())
+
+  track       Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  attendances TalkAttendance[]
+  raffles     Raffle[] @relation("TalkRaffles")
+
+  @@index([trackId])
+}
+
+model TalkAttendance {
+  id        String   @id @default(cuid())
+  talkId    String
+  name      String
+  email     String
+  entryTime DateTime? // Horário de Entrada
+  exitTime  DateTime? // Horário de Saída
+  duration  Int?      // Duração em minutos
+  createdAt DateTime @default(now())
+
+  talk      Talk @relation(fields: [talkId], references: [id], onDelete: Cascade)
+
+  @@unique([email, talkId])
+  @@index([talkId])
 }

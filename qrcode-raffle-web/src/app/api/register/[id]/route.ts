@@ -34,8 +34,28 @@ export async function POST(
       )
     }
 
+    // For event raffles: check if link registration is allowed
+    const isEventRaffle = raffle.eventId && !raffle.talkId
+    if (isEventRaffle && !raffle.allowLinkRegistration) {
+      return NextResponse.json(
+        { error: 'Este sorteio nao aceita inscricoes por link. Participantes sao selecionados automaticamente.' },
+        { status: 400 }
+      )
+    }
+
+    // Check if registration is within schedule (startsAt/endsAt)
+    const now = new Date()
+
+    // Check if registration hasn't started yet
+    if (raffle.startsAt && now < new Date(raffle.startsAt)) {
+      return NextResponse.json(
+        { error: 'As inscricoes ainda nao foram abertas' },
+        { status: 400 }
+      )
+    }
+
     // Check if timebox has expired
-    if (raffle.endsAt && new Date() > new Date(raffle.endsAt)) {
+    if (raffle.endsAt && now > new Date(raffle.endsAt)) {
       // Auto-close the raffle
       await prisma.raffle.update({
         where: { id },
@@ -138,11 +158,15 @@ export async function GET(
       status: raffle.status,
       allowedDomain: raffle.allowedDomain,
       participantCount: raffle._count.participants,
-      // Timebox fields
-      timeboxMinutes: raffle.timeboxMinutes,
+      // Schedule fields
+      startsAt: raffle.startsAt,
       endsAt: raffle.endsAt,
       // PIN confirmation
-      requireConfirmation: raffle.requireConfirmation
+      requireConfirmation: raffle.requireConfirmation,
+      // Event raffle fields
+      eventId: raffle.eventId,
+      talkId: raffle.talkId,
+      allowLinkRegistration: raffle.allowLinkRegistration
     })
   } catch (error) {
     console.error('Error fetching raffle info:', error)

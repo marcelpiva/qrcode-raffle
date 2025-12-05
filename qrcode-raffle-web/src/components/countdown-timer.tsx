@@ -9,9 +9,11 @@ interface CountdownTimerProps {
   onExpire?: () => void
   size?: 'sm' | 'md' | 'lg'
   showIcon?: boolean
+  label?: string // Optional label like "Abre em" or "Encerra em"
+  hideWhenExpired?: boolean // If true, don't show "ENCERRADO" when expired
 }
 
-export function CountdownTimer({ endsAt, onExpire, size = 'md', showIcon = true }: CountdownTimerProps) {
+export function CountdownTimer({ endsAt, onExpire, size = 'md', showIcon = true, label, hideWhenExpired = false }: CountdownTimerProps) {
   const [timeLeft, setTimeLeft] = useState<number>(0)
   const [serverOffset, setServerOffset] = useState<number>(0)
   const [isMounted, setIsMounted] = useState(false)
@@ -87,6 +89,10 @@ export function CountdownTimer({ endsAt, onExpire, size = 'md', showIcon = true 
   }
 
   if (isExpired) {
+    // If hideWhenExpired is true, don't render anything (used for "Abre em" countdowns)
+    if (hideWhenExpired) {
+      return null
+    }
     return (
       <motion.div
         className={`flex items-center gap-2 text-red-500 ${sizeClasses[size]}`}
@@ -106,6 +112,7 @@ export function CountdownTimer({ endsAt, onExpire, size = 'md', showIcon = true 
       className={`flex items-center gap-2 ${isUrgent ? 'text-red-500' : 'text-white'} ${sizeClasses[size]}`}
     >
       {showIcon && (isUrgent ? <AlertTriangle className={iconSizes[size]} /> : <Clock className={iconSizes[size]} />)}
+      {label && <span className="font-medium">{label}</span>}
       <span className="font-mono font-bold tabular-nums">
         {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
       </span>

@@ -5,6 +5,26 @@ Todas as mudancas notaveis neste projeto serao documentadas neste arquivo.
 O formato e baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.0.0] - 2025-12-05
+
+### Adicionado
+
+- **Sistema de Eventos Completo**
+  - Gerenciamento de eventos com trilhas e palestras
+  - Presenças por palestra com duração calculada
+  - Timeline visual do evento
+  - Import CSV para trilhas, palestras e presenças
+- **Tipos de Sorteio**
+  - Sorteio de Evento (participantes de todas palestras)
+  - Sorteio de Palestra (via QR Code)
+- **Wizard de Criação** - Assistente em 3 passos
+- **Countdown Duplo** - "Abre em" / "Encerra em"
+- **Sorteio Automático** ao fim do countdown
+- **Display Grandioso** para sorteios de evento
+- **Ações em Tempo Real** - Display reflete admin actions
+
+---
+
 ## [1.0.0] - 2025-12-05
 
 ### Adicionado

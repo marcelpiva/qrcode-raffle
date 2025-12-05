@@ -18,6 +18,18 @@ export async function GET(
           include: { participant: true },
           orderBy: { drawNumber: 'asc' }
         },
+        talk: {
+          select: {
+            id: true,
+            title: true,
+            track: {
+              select: { id: true, title: true, eventId: true }
+            }
+          }
+        },
+        event: {
+          select: { id: true, name: true }
+        },
         _count: {
           select: { participants: true }
         }
@@ -42,18 +54,31 @@ export async function PATCH(
   try {
     const { id } = await params
     const body = await request.json()
-    const { status } = body
+    const { status, allowLinkRegistration, autoDrawOnEnd } = body
 
     // If reopening (setting to active), also clear any pending winner
-    const updateData: Record<string, unknown> = {
-      status,
-      closedAt: status === 'closed' ? new Date() : undefined
+    const updateData: Record<string, unknown> = {}
+
+    // Handle status change
+    if (status !== undefined) {
+      updateData.status = status
+      updateData.closedAt = status === 'closed' ? new Date() : undefined
+
+      if (status === 'active') {
+        // Clear pending winner and endsAt when reopening
+        updateData.winnerId = null
+        updateData.endsAt = null
+      }
     }
 
-    if (status === 'active') {
-      // Clear pending winner and endsAt when reopening
-      updateData.winnerId = null
-      updateData.endsAt = null
+    // Handle allowLinkRegistration toggle
+    if (allowLinkRegistration !== undefined) {
+      updateData.allowLinkRegistration = allowLinkRegistration
+    }
+
+    // Handle autoDrawOnEnd toggle
+    if (autoDrawOnEnd !== undefined) {
+      updateData.autoDrawOnEnd = autoDrawOnEnd
     }
 
     const raffle = await prisma.raffle.update({

@@ -5,6 +5,42 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.0.0] - 2025-12-05
+
+### Adicionado
+
+- **Sistema de Eventos** - Gerenciamento completo de eventos com trilhas e palestras
+  - Criar e gerenciar eventos com datas de início e fim
+  - Trilhas (Tracks) para organizar palestras por tema ou sala
+  - Palestras (Talks) com horários de início e fim
+  - Presenças (TalkAttendance) com duração calculada automaticamente
+  - Timeline visual do evento
+  - Import CSV para trilhas, palestras e presenças
+- **Tipos de Sorteio**
+  - **Sorteio de Evento** - Participantes de todas as palestras com filtro de tempo mínimo
+  - **Sorteio de Palestra** - Via QR Code com auto-inscrição durante a palestra
+- **Wizard de Criação de Sorteio** - Assistente em 3 passos
+  - Passo 1: Escolha do tipo (Evento ou Palestra)
+  - Passo 2: Configuração (tempo mínimo ou seleção de palestra)
+  - Passo 3: Detalhes do prêmio e opções avançadas
+- **Countdown Duplo** - "Abre em" antes do início, "Encerra em" durante o período
+- **Sorteio Automático** - Sortear automaticamente quando countdown termina (`autoDrawOnEnd`)
+- **Inscrição por Link** - Toggle para permitir inscrição via QR Code em sorteios de evento
+- **Display Grandioso para Eventos** - Layout especial com troféu animado e contador de participantes
+- **Ações Admin em Tempo Real** - Display reflete imediatamente ações do admin (sorteio, reabrir, etc.)
+
+### Alterado
+
+- Polling agora continua durante fase de celebração para detectar ações do admin
+- Interface Track atualizada com `startDate/endDate` em vez de `startTime/endTime`
+- Removidos scripts de migração obsoletos (`migrate-raffles.ts`, `migrate-nava-summit.ts`)
+- Removido endpoint `/api/tracks/[id]/attendance` (presenças são por Talk, não Track)
+
+### Corrigido
+
+- Tipos TypeScript alinhados com schema Prisma atual
+- Build passando sem erros de tipo
+
 ## [1.5.3] - 2025-12-03
 
 ### Corrigido

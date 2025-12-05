@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use, useRef, useCallback } from 'react'
 import Image from 'next/image'
-import { Trophy, Users, Sparkles, PartyPopper, Gift, Star, KeyRound } from 'lucide-react'
+import { Trophy, Users, Sparkles, PartyPopper, Gift, Star, KeyRound, Link2Off } from 'lucide-react'
 import { CountdownTimer } from '@/components/countdown-timer'
 import { motion, AnimatePresence } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
@@ -29,24 +29,38 @@ interface Raffle {
   status: string
   winner?: { id: string; name: string; email: string } | null
   _count: { participants: number }
+  startsAt?: string | null
   endsAt?: string | null
   requireConfirmation?: boolean
   confirmationTimeoutMinutes?: number | null
   drawHistory?: DrawHistoryItem[]
+  eventId?: string | null
+  talkId?: string | null
+  allowLinkRegistration?: boolean
+  autoDrawOnEnd?: boolean
 }
 
 type DrawPhase = 'idle' | 'spinning' | 'celebration'
 
-// Calcula o status efetivo considerando o timeout
+// Calcula o status efetivo considerando startsAt e endsAt
 function getEffectiveStatus(raffle: Raffle): string {
   if (raffle.status === 'drawn') return 'drawn'
   if (raffle.status === 'closed') return 'closed'
-  // Se active mas endsAt expirou, considerar como closed
-  if (raffle.status === 'active' && raffle.endsAt) {
-    const now = new Date()
+
+  const now = new Date()
+
+  // Se ainda não chegou o horário de início, considerar como upcoming
+  if (raffle.startsAt) {
+    const startsAt = new Date(raffle.startsAt)
+    if (now < startsAt) return 'upcoming'
+  }
+
+  // Se passou o horário de fim, considerar como closed
+  if (raffle.endsAt) {
     const endsAt = new Date(raffle.endsAt)
     if (now > endsAt) return 'closed'
   }
+
   return raffle.status
 }
 
@@ -170,18 +184,53 @@ export default function DisplayPage({ params }: { params: Promise<{ id: string }
     }
   }, [id])
 
+  // Handle startsAt countdown expiration (when registration opens)
+  const handleStartsAtExpire = useCallback(async () => {
+    // Fetch latest raffle state to update UI
+    try {
+      const res = await fetch(`/api/raffles/${id}`)
+      if (res.ok) {
+        const latestRaffle = await res.json()
+        setRaffle(latestRaffle)
+      }
+    } catch (error) {
+      console.error('Error handling startsAt expire:', error)
+    }
+  }, [id])
+
+  // Handle endsAt countdown expiration (when registration closes)
+  const handleScheduleExpire = useCallback(async () => {
+    // Fetch latest raffle state directly
+    try {
+      const res = await fetch(`/api/raffles/${id}`)
+      if (res.ok) {
+        const latestRaffle = await res.json()
+        setRaffle(latestRaffle)
+
+        // Check if auto-draw is enabled and we have participants
+        if (latestRaffle.autoDrawOnEnd && latestRaffle._count?.participants > 0 && !latestRaffle.winner) {
+          // Small delay to ensure the UI updates first
+          setTimeout(() => {
+            triggerAutoDraw()
+          }, 500)
+        }
+      }
+    } catch (error) {
+      console.error('Error handling schedule expire:', error)
+    }
+  }, [id, triggerAutoDraw])
+
   useEffect(() => {
     setOrigin(window.location.origin)
     fetchRaffle()
     fetchParticipants()
 
     const interval = setInterval(() => {
-      // Poll in idle phase OR in celebration with pending confirmation
-      const shouldPoll = drawPhase === 'idle' ||
-        (drawPhase === 'celebration' && raffle?.requireConfirmation && raffle?.status !== 'drawn')
-
-      if (shouldPoll) {
+      // Always poll for raffle updates to detect admin actions (new draw, reopen, status change)
+      // Only skip polling during spinning animation
+      if (drawPhase !== 'spinning') {
         fetchRaffle()
+        // Only fetch participants in idle phase
         if (drawPhase === 'idle') {
           fetchParticipants()
         }
@@ -194,7 +243,7 @@ export default function DisplayPage({ params }: { params: Promise<{ id: string }
         clearTimeout(spinIntervalRef.current)
       }
     }
-  }, [id, drawPhase, raffle?.requireConfirmation, raffle?.status])
+  }, [id, drawPhase])
 
   // Start spinning when draw is detected
   useEffect(() => {
@@ -328,6 +377,12 @@ export default function DisplayPage({ params }: { params: Promise<{ id: string }
   }
 
   const registerUrl = `${origin}/register/${raffle.id}`
+
+  // Check if this is an event raffle (eventId set, no talkId)
+  const isEventRaffle = raffle.eventId && !raffle.talkId
+
+  // Check if this is an event raffle without link registration
+  const isEventRaffleNoLink = isEventRaffle && !raffle.allowLinkRegistration
 
   // ========== SPINNING PHASE ==========
   if (drawPhase === 'spinning') {
@@ -602,6 +657,260 @@ export default function DisplayPage({ params }: { params: Promise<{ id: string }
   }
 
   // ========== IDLE PHASE - Main Display ==========
+
+  // ========== EVENT RAFFLE LAYOUT - Grandioso ==========
+  if (isEventRaffle) {
+    return (
+      <div className="min-h-screen bg-black text-white overflow-hidden">
+        {/* Animated gradient background - more dramatic */}
+        <div className="fixed inset-0">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-900/40 via-black to-yellow-900/30" />
+          <motion.div
+            animate={{
+              background: [
+                'radial-gradient(circle at 50% 50%, rgba(250, 204, 21, 0.15) 0%, transparent 60%)',
+                'radial-gradient(circle at 30% 70%, rgba(168, 85, 247, 0.15) 0%, transparent 60%)',
+                'radial-gradient(circle at 70% 30%, rgba(236, 72, 153, 0.15) 0%, transparent 60%)',
+                'radial-gradient(circle at 50% 50%, rgba(250, 204, 21, 0.15) 0%, transparent 60%)',
+              ]
+            }}
+            transition={{ duration: 8, repeat: Infinity }}
+            className="absolute inset-0"
+          />
+          {/* Floating particles */}
+          {[...Array(6)].map((_, i) => (
+            <motion.div
+              key={i}
+              initial={{
+                x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1000),
+                y: (typeof window !== 'undefined' ? window.innerHeight : 800) + 50,
+              }}
+              animate={{
+                y: -50,
+                x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1000),
+              }}
+              transition={{
+                duration: Math.random() * 10 + 15,
+                repeat: Infinity,
+                delay: Math.random() * 5
+              }}
+              className="absolute"
+            >
+              <Star className="h-4 w-4 md:h-6 md:w-6 text-yellow-400/30 fill-yellow-400/30" />
+            </motion.div>
+          ))}
+        </div>
+
+        <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-4 md:p-8">
+          {/* Logo + Status Row */}
+          <motion.div
+            initial={{ y: -30, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="flex items-center gap-4 mb-6 md:mb-10"
+          >
+            <Image
+              src="/nava-icon.jpg"
+              alt="Nava Logo"
+              width={60}
+              height={60}
+              className="rounded-2xl shadow-2xl shadow-purple-500/50 md:w-20 md:h-20"
+            />
+            <div>
+              <h1 className="text-xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-200 to-pink-200">
+                {raffle.name}
+              </h1>
+              {raffle.description && (
+                <p className="text-xs md:text-sm text-white/50">{raffle.description}</p>
+              )}
+            </div>
+
+            {/* Status Badge */}
+            <div className="ml-4">
+              {getEffectiveStatus(raffle) === 'upcoming' ? (
+                <motion.div
+                  animate={{ scale: [1, 1.05, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-500/30 border-2 border-blue-400 rounded-full"
+                >
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-400"></span>
+                  </span>
+                  <span className="text-blue-400 font-black text-sm md:text-base">EM BREVE</span>
+                </motion.div>
+              ) : getEffectiveStatus(raffle) === 'active' ? (
+                <motion.div
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-500/30 border-2 border-green-400 rounded-full"
+                >
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-400"></span>
+                  </span>
+                  <span className="text-green-400 font-black text-sm md:text-base">AO VIVO</span>
+                </motion.div>
+              ) : getEffectiveStatus(raffle) === 'closed' ? (
+                <div className="flex items-center gap-2 px-4 py-2 bg-yellow-500/30 border-2 border-yellow-400 rounded-full">
+                  <span className="text-yellow-400 font-black text-sm md:text-base">ENCERRADO</span>
+                </div>
+              ) : null}
+            </div>
+          </motion.div>
+
+          {/* Giant Countdown */}
+          {(raffle.startsAt && getEffectiveStatus(raffle) === 'upcoming') || (raffle.endsAt && getEffectiveStatus(raffle) === 'active') ? (
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="mb-8 md:mb-12"
+            >
+              <motion.div
+                animate={{ boxShadow: ['0 0 30px rgba(250,204,21,0.2)', '0 0 60px rgba(250,204,21,0.4)', '0 0 30px rgba(250,204,21,0.2)'] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="px-8 py-4 md:px-12 md:py-6 bg-gradient-to-r from-yellow-500/20 via-orange-500/20 to-yellow-500/20 border-2 border-yellow-500/50 rounded-2xl"
+              >
+                {raffle.startsAt && getEffectiveStatus(raffle) === 'upcoming' ? (
+                  <CountdownTimer
+                    endsAt={raffle.startsAt}
+                    onExpire={handleStartsAtExpire}
+                    size="lg"
+                    label="Abre em"
+                    hideWhenExpired
+                  />
+                ) : (
+                  <CountdownTimer
+                    endsAt={raffle.endsAt!}
+                    onExpire={handleScheduleExpire}
+                    size="lg"
+                    label="Encerra em"
+                  />
+                )}
+              </motion.div>
+            </motion.div>
+          ) : null}
+
+          {/* Giant Trophy + Prize */}
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.3, type: 'spring', stiffness: 100 }}
+            className="relative mb-8 md:mb-12"
+          >
+            {/* Glow effect */}
+            <motion.div
+              animate={{
+                scale: [1, 1.1, 1],
+                opacity: [0.4, 0.7, 0.4]
+              }}
+              transition={{ duration: 3, repeat: Infinity }}
+              className="absolute inset-0 bg-gradient-to-br from-yellow-400 via-orange-500 to-yellow-400 rounded-full blur-3xl"
+            />
+
+            {/* Trophy Container */}
+            <div className="relative flex flex-col items-center">
+              <motion.div
+                animate={{
+                  y: [0, -10, 0],
+                  rotate: [0, 3, -3, 0]
+                }}
+                transition={{ duration: 4, repeat: Infinity }}
+                className="relative"
+              >
+                <div className="flex h-32 w-32 md:h-48 md:w-48 items-center justify-center rounded-full bg-gradient-to-br from-yellow-300 via-yellow-400 to-orange-500 shadow-2xl shadow-yellow-500/50">
+                  <Trophy className="h-16 w-16 md:h-24 md:w-24 text-white drop-shadow-lg" />
+                </div>
+                {/* Sparkle decorations */}
+                <motion.div
+                  animate={{ scale: [1, 1.3, 1], opacity: [1, 0.5, 1] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  className="absolute -top-2 -right-2"
+                >
+                  <Sparkles className="h-8 w-8 md:h-12 md:w-12 text-yellow-300" />
+                </motion.div>
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1], opacity: [1, 0.6, 1] }}
+                  transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
+                  className="absolute -bottom-1 -left-3"
+                >
+                  <Star className="h-6 w-6 md:h-10 md:w-10 text-orange-400 fill-orange-400" />
+                </motion.div>
+              </motion.div>
+
+              {/* Prize Text */}
+              <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="mt-6 md:mt-8 text-center"
+              >
+                <p className="text-sm md:text-lg text-yellow-400/80 uppercase tracking-[0.3em] font-bold mb-2">
+                  PREMIO
+                </p>
+                <motion.h2
+                  animate={{ scale: [1, 1.02, 1] }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                  className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-orange-400 drop-shadow-[0_0_30px_rgba(250,204,21,0.3)] px-4"
+                >
+                  {raffle.prize}
+                </motion.h2>
+              </motion.div>
+            </div>
+          </motion.div>
+
+          {/* Participant Counter - Big and Elegant */}
+          <motion.div
+            initial={{ y: 30, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.6 }}
+            className="relative"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 rounded-3xl blur-xl opacity-30" />
+            <div className="relative bg-gradient-to-br from-gray-900/90 to-black/90 backdrop-blur-xl rounded-3xl px-10 py-6 md:px-16 md:py-8 border border-purple-500/50">
+              <div className="flex items-center gap-6 md:gap-10">
+                <div className="p-3 md:p-4 bg-purple-500/20 rounded-2xl">
+                  <Users className="h-10 w-10 md:h-14 md:w-14 text-purple-400" />
+                </div>
+                <div className="text-center">
+                  <p className="text-xs md:text-sm text-purple-400/80 uppercase tracking-widest font-bold mb-1">
+                    Participantes Elegiveis
+                  </p>
+                  <AnimatePresence mode="wait">
+                    <motion.p
+                      key={raffle._count.participants}
+                      initial={{ scale: 1.5, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400"
+                    >
+                      {raffle._count.participants}
+                    </motion.p>
+                  </AnimatePresence>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Footer info - Only if has link registration */}
+          {raffle.allowLinkRegistration && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.8 }}
+              className="mt-8 md:mt-12 text-center"
+            >
+              <p className="text-white/40 text-xs md:text-sm mb-3">Escaneie para participar</p>
+              <div className="bg-white rounded-2xl p-3 md:p-4 inline-block shadow-lg shadow-purple-500/20">
+                <QRCodeSVG value={registerUrl} size={120} level="H" />
+              </div>
+            </motion.div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // ========== TALK RAFFLE LAYOUT - With Participants List ==========
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
       {/* Animated gradient background */}
@@ -654,17 +963,44 @@ export default function DisplayPage({ params }: { params: Promise<{ id: string }
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {/* Countdown Timer - Mobile - só mostra se ainda não expirou */}
+                  {/* Countdown Timer - Mobile */}
+                  {/* Countdown "Abre em" - antes de startsAt */}
+                  {raffle.startsAt && getEffectiveStatus(raffle) === 'upcoming' && (
+                    <div className="px-3 py-1.5 bg-blue-500/30 border-2 border-blue-400 rounded-full">
+                      <CountdownTimer
+                        endsAt={raffle.startsAt}
+                        onExpire={handleStartsAtExpire}
+                        size="sm"
+                        label="Abre em"
+                        hideWhenExpired
+                      />
+                    </div>
+                  )}
+                  {/* Countdown "Encerra em" - entre startsAt e endsAt */}
                   {raffle.endsAt && getEffectiveStatus(raffle) === 'active' && (
                     <div className="px-3 py-1.5 bg-red-500/30 border-2 border-red-400 rounded-full">
                       <CountdownTimer
                         endsAt={raffle.endsAt}
-                        onExpire={() => fetchRaffle()}
+                        onExpire={handleScheduleExpire}
                         size="sm"
+                        label="Encerra em"
                       />
                     </div>
                   )}
-                  {getEffectiveStatus(raffle) === 'active' ? (
+                  {/* Status badges */}
+                  {getEffectiveStatus(raffle) === 'upcoming' ? (
+                    <motion.div
+                      animate={{ scale: [1, 1.05, 1] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/30 border-2 border-blue-400 rounded-full shadow-lg shadow-blue-500/30"
+                    >
+                      <span className="relative flex h-2.5 w-2.5">
+                        <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-400"></span>
+                      </span>
+                      <span className="text-blue-400 font-black text-xs tracking-wide">EM BREVE</span>
+                    </motion.div>
+                  ) : getEffectiveStatus(raffle) === 'active' ? (
                     <motion.div
                       animate={{ scale: [1, 1.1, 1] }}
                       transition={{ duration: 1.5, repeat: Infinity }}
@@ -848,7 +1184,24 @@ export default function DisplayPage({ params }: { params: Promise<{ id: string }
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Countdown Timer - Desktop - só mostra se ainda não expirou */}
+            {/* Countdown Timer - Desktop */}
+            {/* Countdown "Abre em" - antes de startsAt */}
+            {raffle.startsAt && getEffectiveStatus(raffle) === 'upcoming' && (
+              <motion.div
+                animate={{ boxShadow: ['0 0 20px rgba(59,130,246,0.3)', '0 0 40px rgba(59,130,246,0.5)', '0 0 20px rgba(59,130,246,0.3)'] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="px-6 py-3 bg-blue-500/20 border-2 border-blue-500 rounded-full"
+              >
+                <CountdownTimer
+                  endsAt={raffle.startsAt}
+                  onExpire={handleStartsAtExpire}
+                  size="md"
+                  label="Abre em"
+                  hideWhenExpired
+                />
+              </motion.div>
+            )}
+            {/* Countdown "Encerra em" - entre startsAt e endsAt */}
             {raffle.endsAt && getEffectiveStatus(raffle) === 'active' && (
               <motion.div
                 animate={{ boxShadow: ['0 0 20px rgba(239,68,68,0.3)', '0 0 40px rgba(239,68,68,0.5)', '0 0 20px rgba(239,68,68,0.3)'] }}
@@ -857,12 +1210,26 @@ export default function DisplayPage({ params }: { params: Promise<{ id: string }
               >
                 <CountdownTimer
                   endsAt={raffle.endsAt}
-                  onExpire={() => fetchRaffle()}
+                  onExpire={handleScheduleExpire}
                   size="md"
+                  label="Encerra em"
                 />
               </motion.div>
             )}
-            {getEffectiveStatus(raffle) === 'active' ? (
+            {/* Status badges */}
+            {getEffectiveStatus(raffle) === 'upcoming' ? (
+              <motion.div
+                animate={{ scale: [1, 1.05, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="flex items-center gap-3 px-6 py-3 bg-blue-500/20 border-2 border-blue-500 rounded-full"
+              >
+                <span className="relative flex h-4 w-4">
+                  <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-4 w-4 bg-blue-500"></span>
+                </span>
+                <span className="text-blue-400 font-bold text-xl">EM BREVE</span>
+              </motion.div>
+            ) : getEffectiveStatus(raffle) === 'active' ? (
               <motion.div
                 animate={{ scale: [1, 1.05, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}
@@ -886,7 +1253,7 @@ export default function DisplayPage({ params }: { params: Promise<{ id: string }
         <div className="hidden md:flex flex-1 lg:grid lg:grid-cols-12 gap-8 overflow-hidden">
           {/* Left Column - QR & Prize & Counter */}
           <div className="hidden lg:block lg:col-span-4 space-y-6">
-            {/* QR Code Card */}
+            {/* QR Code Card or Event Info */}
             <motion.div
               initial={{ x: -50, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
@@ -894,12 +1261,28 @@ export default function DisplayPage({ params }: { params: Promise<{ id: string }
             >
               <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 rounded-3xl blur-xl opacity-30 group-hover:opacity-50 transition-opacity" />
               <div className="relative bg-gradient-to-br from-gray-900/90 to-black/90 backdrop-blur-xl rounded-3xl p-8 border border-white/10">
-                <h3 className="text-2xl font-bold text-center mb-6 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
-                  Escaneie para Participar
-                </h3>
-                <div className="bg-white rounded-2xl p-4 mx-auto w-fit shadow-2xl shadow-purple-500/20">
-                  <QRCodeSVG value={registerUrl} size={220} level="H" includeMargin={true} />
-                </div>
+                {isEventRaffleNoLink ? (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-purple-500/20 mb-4">
+                      <Link2Off className="h-10 w-10 text-purple-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-center mb-2 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+                      Sorteio por Presenças
+                    </h3>
+                    <p className="text-sm text-white/50 text-center max-w-[200px]">
+                      Participantes selecionados automaticamente com base nas presenças do evento
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <h3 className="text-2xl font-bold text-center mb-6 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+                      Escaneie para Participar
+                    </h3>
+                    <div className="bg-white rounded-2xl p-4 mx-auto w-fit shadow-2xl shadow-purple-500/20">
+                      <QRCodeSVG value={registerUrl} size={220} level="H" includeMargin={true} />
+                    </div>
+                  </>
+                )}
               </div>
             </motion.div>
 
@@ -955,78 +1338,80 @@ export default function DisplayPage({ params }: { params: Promise<{ id: string }
             </motion.div>
           </div>
 
-          {/* Right Column - Participants */}
-          <div className="lg:col-span-8 flex-1 min-h-0">
-            <motion.div
-              initial={{ x: 50, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              className="h-full relative"
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-3xl blur-xl opacity-30" />
-              <div className="relative h-full bg-gradient-to-br from-gray-900/80 to-black/80 backdrop-blur-xl rounded-3xl p-8 border border-white/10 flex flex-col">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-3xl font-bold flex items-center gap-3">
-                    <Sparkles className="h-8 w-8 text-yellow-400" />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-purple-200">
-                      Participantes
-                    </span>
-                  </h3>
-                </div>
+          {/* Right Column - Participants (hidden for event raffles) */}
+          {!isEventRaffle && (
+            <div className="lg:col-span-8 flex-1 min-h-0">
+              <motion.div
+                initial={{ x: 50, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                className="h-full relative"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-3xl blur-xl opacity-30" />
+                <div className="relative h-full bg-gradient-to-br from-gray-900/80 to-black/80 backdrop-blur-xl rounded-3xl p-8 border border-white/10 flex flex-col">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-3xl font-bold flex items-center gap-3">
+                      <Sparkles className="h-8 w-8 text-yellow-400" />
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-purple-200">
+                        Participantes
+                      </span>
+                    </h3>
+                  </div>
 
-                {/* New Participant Alert */}
-                <AnimatePresence>
-                  {latestParticipant && (
-                    <motion.div
-                      initial={{ x: 300, opacity: 0 }}
-                      animate={{ x: 0, opacity: 1 }}
-                      exit={{ x: -300, opacity: 0 }}
-                      className="mb-6"
-                    >
-                      <div className="bg-gradient-to-r from-green-500/30 to-emerald-500/30 rounded-2xl p-5 border-2 border-green-500/50">
-                        <div className="flex items-center gap-4">
-                          <span className="relative flex h-5 w-5">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-5 w-5 bg-green-500"></span>
-                          </span>
-                          <span className="text-green-400 font-bold text-xl">NOVO!</span>
-                          <span className="text-3xl font-black text-white truncate">{latestParticipant.name}</span>
+                  {/* New Participant Alert */}
+                  <AnimatePresence>
+                    {latestParticipant && (
+                      <motion.div
+                        initial={{ x: 300, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        exit={{ x: -300, opacity: 0 }}
+                        className="mb-6"
+                      >
+                        <div className="bg-gradient-to-r from-green-500/30 to-emerald-500/30 rounded-2xl p-5 border-2 border-green-500/50">
+                          <div className="flex items-center gap-4">
+                            <span className="relative flex h-5 w-5">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-5 w-5 bg-green-500"></span>
+                            </span>
+                            <span className="text-green-400 font-bold text-xl">NOVO!</span>
+                            <span className="text-3xl font-black text-white truncate">{latestParticipant.name}</span>
+                          </div>
                         </div>
-                      </div>
-                    </motion.div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Participants Grid */}
+                  <div className="flex-1 overflow-y-auto">
+                    <div className="grid grid-cols-3 gap-4 pr-1">
+                      <AnimatePresence>
+                        {participants.map((participant, index) => (
+                          <motion.div
+                            key={participant.id}
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: index * 0.02 }}
+                            className="bg-white/5 hover:bg-white/10 rounded-xl p-4 border border-white/10 hover:border-purple-500/50 transition-all"
+                          >
+                            <p className="font-semibold text-lg truncate">{participant.name}</p>
+                            <p className="text-sm text-white/40">
+                              {new Date(participant.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+
+                  {participants.length === 0 && (
+                    <div className="flex-1 flex flex-col items-center justify-center text-white/30">
+                      <Users className="h-20 w-20 mb-4" />
+                      <p className="text-2xl font-bold text-center">Aguardando participantes...</p>
+                    </div>
                   )}
-                </AnimatePresence>
-
-                {/* Participants Grid */}
-                <div className="flex-1 overflow-y-auto">
-                  <div className="grid grid-cols-3 gap-4 pr-1">
-                    <AnimatePresence>
-                      {participants.map((participant, index) => (
-                        <motion.div
-                          key={participant.id}
-                          initial={{ opacity: 0, scale: 0.8 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: index * 0.02 }}
-                          className="bg-white/5 hover:bg-white/10 rounded-xl p-4 border border-white/10 hover:border-purple-500/50 transition-all"
-                        >
-                          <p className="font-semibold text-lg truncate">{participant.name}</p>
-                          <p className="text-sm text-white/40">
-                            {new Date(participant.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </motion.div>
-                      ))}
-                    </AnimatePresence>
-                  </div>
                 </div>
-
-                {participants.length === 0 && (
-                  <div className="flex-1 flex flex-col items-center justify-center text-white/30">
-                    <Users className="h-20 w-20 mb-4" />
-                    <p className="text-2xl font-bold text-center">Aguardando participantes...</p>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
+              </motion.div>
+            </div>
+          )}
         </div>
       </div>
     </div>

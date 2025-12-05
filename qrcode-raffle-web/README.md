@@ -4,12 +4,24 @@ Sistema de sorteios com QR Code para eventos.
 
 ## Funcionalidades
 
-- Criar e gerenciar sorteios
-- QR Code para registro de participantes
+### Gerenciamento de Eventos
+- **Sistema de Eventos** - Criar e gerenciar eventos com múltiplas trilhas e palestras
+- **Trilhas (Tracks)** - Organizar palestras por tema ou sala
+- **Palestras (Talks)** - Cadastrar palestras com horários de início e fim
+- **Presenças (Attendances)** - Registrar presenças via QR Code com duração
+- **Timeline Visual** - Visualização cronológica do evento
+- **Import CSV** - Importação em massa de trilhas, palestras e presenças
+
+### Tipos de Sorteio
+- **Sorteio de Evento** - Participantes de todas as palestras com filtro de tempo mínimo
+- **Sorteio de Palestra** - Via QR Code com auto-inscrição durante a palestra
+- **Wizard de Criação** - Assistente em 3 passos para criar sorteios
+
+### Funcionalidades de Sorteio
 - Sorteio animado estilo slot machine
 - Celebração do vencedor com confetti
 - Painel administrativo protegido por senha
-- Painel de exibição para projetar em tela
+- Painel de exibição para projetar em tela (design grandioso para eventos)
 - Filtro de domínio de e-mail por sorteio
 - Atualização em tempo real dos participantes
 - Re-sorteio quando ganhador está ausente
@@ -17,11 +29,14 @@ Sistema de sorteios com QR Code para eventos.
 - Reabrir sorteio finalizado
 - Reabrir inscrições a qualquer momento
 - **Timebox/Countdown** - Tempo limite para inscrições com encerramento automático
+- **Countdown Duplo** - "Abre em" antes do início, "Encerra em" durante o período
+- **Sorteio Automático** - Sortear automaticamente quando countdown termina
 - **Código de confirmação (PIN)** - Ganhador confirma presença via código de 5 dígitos
 - **Timeout de confirmação** - Re-sorteio automático se ganhador não confirmar presença
 - **Export CSV** - Download de participantes e vencedor em formato CSV
 - **Ranking de Participação** - Análise de engajamento em múltiplos sorteios
 - **Sorteio por Engajamento** - Criar sorteio VIP com participantes mais engajados
+- **Ações em Tempo Real** - Admin actions refletem imediatamente no display
 
 ## Tech Stack
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Users, Trophy, Calendar, Trash2, BarChart3, Layers, ChevronRight } from 'lucide-react'
+import { Plus, Calendar, Users, Trophy, Trash2, ChevronRight, Layers } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -17,26 +17,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { EventWizardDialog } from '@/components/event-wizard-dialog'
-import { useRouter } from 'next/navigation'
-
-interface Talk {
-  id: string
-  title: string
-  speaker: string | null
-  attendanceCount: number
-  raffleCount: number
-}
+import { EventFormDialog } from '@/components/event-form-dialog'
 
 interface Track {
   id: string
   title: string
-  startDate: string
-  endDate: string
-  talkCount: number
+  day: string
+  speaker: string | null
   attendanceCount: number
   raffleCount: number
-  talks: Talk[]
 }
 
 interface Event {
@@ -47,19 +36,13 @@ interface Event {
   speakers: string | null
   trackCount: number
   raffleCount: number
-  attendanceCount: number
   tracks: Track[]
 }
 
-export default function AdminDashboard() {
-  const router = useRouter()
+export default function EventsPage() {
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
-
-  const handleEventCreated = (eventId: string) => {
-    router.push(`/admin/events/${eventId}`)
-  }
 
   const fetchEvents = async () => {
     try {
@@ -103,8 +86,8 @@ export default function AdminDashboard() {
     return `${formatter.format(startDate)} - ${formatter.format(endDate)}`
   }
 
-  const pluralize = (count: number, singular: string, plural: string) => {
-    return count === 1 ? singular : plural
+  const getTotalAttendances = (tracks: Track[]) => {
+    return tracks.reduce((sum, t) => sum + t.attendanceCount, 0)
   }
 
   if (loading) {
@@ -119,24 +102,16 @@ export default function AdminDashboard() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Gerencie seus eventos e sorteios</p>
+          <h1 className="text-3xl font-bold">Eventos</h1>
+          <p className="text-muted-foreground">Gerencie eventos e trilhas</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Link href="/admin/ranking">
-            <Button variant="outline">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Ranking
-            </Button>
-          </Link>
-          <Button
-            onClick={() => setDialogOpen(true)}
-            className="bg-gradient-to-r from-primary to-secondary hover:opacity-90"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Evento
-          </Button>
-        </div>
+        <Button
+          onClick={() => setDialogOpen(true)}
+          className="bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Novo Evento
+        </Button>
       </div>
 
       {events.length === 0 ? (
@@ -147,7 +122,7 @@ export default function AdminDashboard() {
             </div>
             <h3 className="text-lg font-semibold mb-2">Nenhum evento ainda</h3>
             <p className="text-muted-foreground text-center mb-4">
-              Crie seu primeiro evento para gerenciar trilhas, presenças e sorteios!
+              Crie seu primeiro evento para gerenciar trilhas e presenças!
             </p>
             <Button onClick={() => setDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
@@ -182,7 +157,7 @@ export default function AdminDashboard() {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Excluir evento?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Esta ação não pode ser desfeita. Todas as trilhas, presenças e sorteios serão removidos.
+                          Esta ação não pode ser desfeita. Todas as trilhas e presenças serão removidas.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -208,15 +183,15 @@ export default function AdminDashboard() {
                 <div className="flex items-center gap-4 text-sm">
                   <div className="flex items-center gap-1.5 text-muted-foreground">
                     <Layers className="h-4 w-4" />
-                    <span>{event.trackCount} {pluralize(event.trackCount, 'trilha', 'trilhas')}</span>
+                    <span>{event.trackCount} trilhas</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-muted-foreground">
                     <Users className="h-4 w-4" />
-                    <span>{event.attendanceCount} {pluralize(event.attendanceCount, 'presença', 'presenças')}</span>
+                    <span>{getTotalAttendances(event.tracks)} presenças</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-muted-foreground">
                     <Trophy className="h-4 w-4" />
-                    <span>{event.raffleCount} {pluralize(event.raffleCount, 'sorteio', 'sorteios')}</span>
+                    <span>{event.raffleCount} sorteios</span>
                   </div>
                 </div>
 
@@ -228,19 +203,14 @@ export default function AdminDashboard() {
                         className="flex items-center justify-between text-xs text-muted-foreground py-1 px-2 rounded bg-muted/50"
                       >
                         <span className="truncate">{track.title}</span>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            {track.talkCount} {pluralize(track.talkCount, 'palestra', 'palestras')}
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            {track.attendanceCount} {pluralize(track.attendanceCount, 'presença', 'presenças')}
-                          </Badge>
-                        </div>
+                        <Badge variant="outline" className="ml-2 text-xs">
+                          {track.attendanceCount}
+                        </Badge>
                       </div>
                     ))}
                     {event.tracks.length > 3 && (
                       <div className="text-xs text-muted-foreground text-center py-1">
-                        +{event.tracks.length - 3} {pluralize(event.tracks.length - 3, 'trilha', 'trilhas')}
+                        +{event.tracks.length - 3} trilhas
                       </div>
                     )}
                   </div>
@@ -258,10 +228,10 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <EventWizardDialog
+      <EventFormDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        onSuccess={handleEventCreated}
+        onSuccess={fetchEvents}
       />
     </div>
   )

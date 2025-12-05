@@ -36,7 +36,8 @@ export async function POST(
         data: {
           status: 'active',
           winnerId: null,
-          closedAt: null
+          closedAt: null,
+          endsAt: null  // Clear timebox when reopening
         },
         include: {
           participants: true,

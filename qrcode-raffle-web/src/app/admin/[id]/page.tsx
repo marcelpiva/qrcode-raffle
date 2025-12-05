@@ -2,13 +2,14 @@
 
 import { useEffect, useState, use } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Trophy, Users, Clock, Lock, Unlock, Shuffle, Mail, MonitorPlay, Check, RefreshCw, UserX, RotateCcw, Download } from 'lucide-react'
+import { ArrowLeft, Trophy, Users, Clock, Lock, Unlock, Shuffle, Mail, MonitorPlay, Check, RefreshCw, UserX, RotateCcw, Download, Link2Off, Link2, Search, Timer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { QRCodeDisplay } from '@/components/qr-code-display'
 import { ParticipantCounter } from '@/components/participant-counter'
+import { Input } from '@/components/ui/input'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,6 +45,23 @@ interface DrawHistory {
   participant: Participant
 }
 
+interface Track {
+  id: string
+  title: string
+  eventId: string
+}
+
+interface Talk {
+  id: string
+  title: string
+  track: Track
+}
+
+interface Event {
+  id: string
+  name: string
+}
+
 interface Raffle {
   id: string
   name: string
@@ -53,10 +71,15 @@ interface Raffle {
   createdAt: string
   closedAt: string | null
   endsAt: string | null
+  startsAt: string | null
   timeboxMinutes: number | null
   participants: Participant[]
   winner?: Participant | null
   drawHistory?: DrawHistory[]
+  talk?: Talk | null
+  event?: Event | null
+  allowLinkRegistration?: boolean
+  autoDrawOnEnd?: boolean
   _count: {
     participants: number
   }
@@ -83,6 +106,9 @@ export default function RaffleDetails({ params }: { params: Promise<{ id: string
   const [isConfirming, setIsConfirming] = useState(false)
   const [isRedrawing, setIsRedrawing] = useState(false)
   const [isReopening, setIsReopening] = useState(false)
+  const [isTogglingLink, setIsTogglingLink] = useState(false)
+  const [isTogglingAutoDraw, setIsTogglingAutoDraw] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
     setOrigin(window.location.origin)
@@ -100,9 +126,15 @@ export default function RaffleDetails({ params }: { params: Promise<{ id: string
     try {
       const res = await fetch(`/api/raffles/${id}`)
       const data = await res.json()
-      setRaffle(data)
+      // Check if response is valid raffle (has _count property)
+      if (res.ok && data._count) {
+        setRaffle(data)
+      } else {
+        setRaffle(null)
+      }
     } catch (error) {
       console.error('Error fetching raffle:', error)
+      setRaffle(null)
     } finally {
       setLoading(false)
     }
@@ -192,6 +224,44 @@ export default function RaffleDetails({ params }: { params: Promise<{ id: string
     }
   }
 
+  const handleToggleLinkRegistration = async () => {
+    if (!raffle) return
+    setIsTogglingLink(true)
+    try {
+      const res = await fetch(`/api/raffles/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ allowLinkRegistration: !raffle.allowLinkRegistration })
+      })
+      if (res.ok) {
+        fetchRaffle()
+      }
+    } catch (error) {
+      console.error('Error toggling link registration:', error)
+    } finally {
+      setIsTogglingLink(false)
+    }
+  }
+
+  const handleToggleAutoDraw = async () => {
+    if (!raffle) return
+    setIsTogglingAutoDraw(true)
+    try {
+      const res = await fetch(`/api/raffles/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ autoDrawOnEnd: !raffle.autoDrawOnEnd })
+      })
+      if (res.ok) {
+        fetchRaffle()
+      }
+    } catch (error) {
+      console.error('Error toggling auto draw:', error)
+    } finally {
+      setIsTogglingAutoDraw(false)
+    }
+  }
+
   // Calcula status efetivo (considerando timeout)
   const effectiveStatus = raffle ? getEffectiveStatus(raffle) : null
 
@@ -230,7 +300,7 @@ export default function RaffleDetails({ params }: { params: Promise<{ id: string
       <div className="text-center py-16">
         <h2 className="text-2xl font-bold mb-2">Sorteio nao encontrado</h2>
         <Link href="/admin">
-          <Button>Voltar ao Dashboard</Button>
+          <Button>Voltar aos Eventos</Button>
         </Link>
       </div>
     )
@@ -241,7 +311,7 @@ export default function RaffleDetails({ params }: { params: Promise<{ id: string
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/admin">
+        <Link href={raffle.talk ? `/admin/events/${raffle.talk.track.eventId}` : raffle.event ? `/admin/events/${raffle.event.id}` : '/admin'}>
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -258,6 +328,16 @@ export default function RaffleDetails({ params }: { params: Promise<{ id: string
             )}
           </div>
           <p className="text-muted-foreground">{raffle.description || 'Sem descricao'}</p>
+          {raffle.talk && (
+            <p className="text-sm text-muted-foreground">
+              Palestra: {raffle.talk.title} (Trilha: {raffle.talk.track.title})
+            </p>
+          )}
+          {raffle.event && !raffle.talk && (
+            <p className="text-sm text-muted-foreground">
+              Evento: {raffle.event.name}
+            </p>
+          )}
         </div>
       </div>
 
@@ -269,9 +349,83 @@ export default function RaffleDetails({ params }: { params: Promise<{ id: string
               <CardTitle className="text-lg">QR Code</CardTitle>
             </CardHeader>
             <CardContent>
-              <QRCodeDisplay url={registerUrl} />
+              {/* Event raffle without link registration - show message instead of QR */}
+              {raffle.event && !raffle.talk && !raffle.allowLinkRegistration ? (
+                <div className="flex flex-col items-center justify-center py-8 px-4 text-center space-y-3">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                    <Link2Off className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-medium text-muted-foreground">
+                      Inscricao por link desabilitada
+                    </p>
+                    <p className="text-sm text-muted-foreground/70">
+                      Os participantes sao selecionados automaticamente com base nas presencas do evento.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <QRCodeDisplay url={registerUrl} />
+              )}
             </CardContent>
           </Card>
+
+          {/* Toggle Link Registration - Only for Event Raffles */}
+          {raffle.event && !raffle.talk && (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleToggleLinkRegistration}
+              disabled={isTogglingLink}
+            >
+              {isTogglingLink ? (
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+              ) : raffle.allowLinkRegistration ? (
+                <Link2Off className="h-4 w-4 mr-2" />
+              ) : (
+                <Link2 className="h-4 w-4 mr-2" />
+              )}
+              {raffle.allowLinkRegistration ? 'Desabilitar Inscricao por Link' : 'Habilitar Inscricao por Link'}
+            </Button>
+          )}
+
+          {/* Toggle Auto Draw - Shows when raffle has schedule and not yet drawn */}
+          {raffle.endsAt && effectiveStatus !== 'drawn' && (
+            <Card className={raffle.autoDrawOnEnd ? 'border-amber-500/50 bg-amber-500/5' : ''}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${raffle.autoDrawOnEnd ? 'bg-amber-500/20' : 'bg-muted'}`}>
+                      <Shuffle className={`h-4 w-4 ${raffle.autoDrawOnEnd ? 'text-amber-600' : 'text-muted-foreground'}`} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Sorteio Automatico</p>
+                      <p className="text-xs text-muted-foreground">
+                        {raffle.autoDrawOnEnd
+                          ? 'Sortear automaticamente ao encerrar countdown'
+                          : 'Encerrar manualmente para sortear'}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant={raffle.autoDrawOnEnd ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={handleToggleAutoDraw}
+                    disabled={isTogglingAutoDraw}
+                    className={raffle.autoDrawOnEnd ? 'bg-amber-500 hover:bg-amber-600' : ''}
+                  >
+                    {isTogglingAutoDraw ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : raffle.autoDrawOnEnd ? (
+                      'Ativado'
+                    ) : (
+                      'Ativar'
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <ParticipantCounter
             raffleId={raffle.id}
@@ -534,10 +688,23 @@ export default function RaffleDetails({ params }: { params: Promise<{ id: string
           {/* Participants List */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Participantes ({raffle.participants.length})
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Participantes ({raffle.participants.length})
+                </CardTitle>
+              </div>
+              {raffle.participants.length > 0 && (
+                <div className="relative mt-2">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por nome ou email..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               {raffle.participants.length === 0 ? (
@@ -545,36 +712,59 @@ export default function RaffleDetails({ params }: { params: Promise<{ id: string
                   Nenhum participante ainda
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Data</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {raffle.participants.map((p) => (
-                      <TableRow key={p.id} className={raffle.winner?.id === p.id ? 'bg-primary/5' : ''}>
-                        <TableCell className="font-medium">
-                          {p.name}
-                          {raffle.winner?.id === p.id && (
-                            <Trophy className="inline h-4 w-4 ml-2 text-primary" />
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <span className="flex items-center gap-1">
-                            <Mail className="h-3 w-3" />
-                            {p.email}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          {new Date(p.createdAt).toLocaleDateString('pt-BR')}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <>
+                  {(() => {
+                    const filteredParticipants = raffle.participants.filter(p =>
+                      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      p.email.toLowerCase().includes(searchTerm.toLowerCase())
+                    )
+                    return (
+                      <>
+                        {searchTerm && (
+                          <p className="text-sm text-muted-foreground mb-3">
+                            Mostrando {filteredParticipants.length} de {raffle.participants.length} participantes
+                          </p>
+                        )}
+                        {filteredParticipants.length === 0 ? (
+                          <div className="text-center py-8 text-muted-foreground">
+                            Nenhum participante encontrado para &quot;{searchTerm}&quot;
+                          </div>
+                        ) : (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Nome</TableHead>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Data</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {filteredParticipants.map((p) => (
+                                <TableRow key={p.id} className={raffle.winner?.id === p.id ? 'bg-primary/5' : ''}>
+                                  <TableCell className="font-medium">
+                                    {p.name}
+                                    {raffle.winner?.id === p.id && (
+                                      <Trophy className="inline h-4 w-4 ml-2 text-primary" />
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <span className="flex items-center gap-1">
+                                      <Mail className="h-3 w-3" />
+                                      {p.email}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell>
+                                    {new Date(p.createdAt).toLocaleDateString('pt-BR')}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        )}
+                      </>
+                    )
+                  })()}
+                </>
               )}
             </CardContent>
           </Card>
