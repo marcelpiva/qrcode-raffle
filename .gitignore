@@ -44,3 +44,12 @@ coverage/
 
 # OS
 Thumbs.db
+
+# Data files (sensitive)
+nava-summit/
+
+# Root lockfile (use workspace lockfiles)
+/package-lock.json
+
+# Deploy artifacts
+deploy.tar.gz
