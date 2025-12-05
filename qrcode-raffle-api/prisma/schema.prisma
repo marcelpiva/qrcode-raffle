@@ -1,0 +1,109 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  PARTICIPANT
+}
+
+enum RaffleStatus {
+  ACTIVE
+  CLOSED
+  DRAWN
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      UserRole @default(PARTICIPANT)
+  fcmToken  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rafflesCreated Raffle[]      @relation("RaffleCreator")
+  participations Participant[]
+  refreshTokens  RefreshToken[]
+
+  @@map("users")
+}
+
+model Raffle {
+  id                         String       @id @default(cuid())
+  name                       String
+  description                String?
+  prize                      String
+  allowedDomain              String?
+  status                     RaffleStatus @default(ACTIVE)
+  winnerId                   String?
+  createdAt                  DateTime     @default(now())
+  closedAt                   DateTime?
+  timeboxMinutes             Int?
+  endsAt                     DateTime?
+  requireConfirmation        Boolean      @default(false)
+  confirmationTimeoutMinutes Int?
+
+  creatorId    String
+  creator      User          @relation("RaffleCreator", fields: [creatorId], references: [id])
+  participants Participant[]
+  winner       Participant?  @relation("Winner", fields: [winnerId], references: [id])
+  drawHistory  DrawHistory[]
+
+  @@map("raffles")
+}
+
+model Participant {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  raffleId  String
+  pinHash   String?
+  createdAt DateTime @default(now())
+
+  userId      String?
+  user        User?         @relation(fields: [userId], references: [id])
+  raffle      Raffle        @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  wonRaffles  Raffle[]      @relation("Winner")
+  drawHistory DrawHistory[]
+
+  @@unique([email, raffleId])
+  @@map("participants")
+}
+
+model DrawHistory {
+  id            String   @id @default(cuid())
+  raffleId      String
+  participantId String
+  drawNumber    Int
+  wasPresent    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  raffle      Raffle      @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  participant Participant @relation(fields: [participantId], references: [id])
+
+  @@index([raffleId])
+  @@map("draw_history")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}

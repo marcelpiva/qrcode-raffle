@@ -1,0 +1,32 @@
+{
+  "name": "qrcode-raffle",
+  "version": "1.0.0",
+  "description": "Sistema completo de sorteios com QR Code para eventos",
+  "private": true,
+  "workspaces": [
+    "qrcode-raffle-web",
+    "qrcode-raffle-api"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=qrcode-raffle-web",
+    "dev:api": "npm run start:dev --workspace=qrcode-raffle-api",
+    "build:web": "npm run build --workspace=qrcode-raffle-web",
+    "build:api": "npm run build --workspace=qrcode-raffle-api",
+    "lint:web": "npm run lint --workspace=qrcode-raffle-web",
+    "lint:api": "npm run lint --workspace=qrcode-raffle-api"
+  },
+  "keywords": [
+    "qrcode",
+    "raffle",
+    "sorteio",
+    "eventos",
+    "nextjs",
+    "nestjs",
+    "flutter"
+  ],
+  "author": "Marcel Piva",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

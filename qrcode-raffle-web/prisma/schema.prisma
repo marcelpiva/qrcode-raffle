@@ -1,0 +1,61 @@
+// Schema para produção com PostgreSQL (Neon)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Raffle {
+  id                  String    @id @default(cuid())
+  name                String
+  description         String?
+  prize               String
+  allowedDomain       String?   // Domain filter for emails (e.g., "nava.com.br")
+  status              String    @default("active") // active, closed, drawn
+  winnerId            String?
+  createdAt           DateTime  @default(now())
+  closedAt            DateTime?
+  // Timebox feature
+  timeboxMinutes      Int?      // Duration in minutes (optional)
+  endsAt              DateTime? // Calculated: createdAt + timeboxMinutes
+  // PIN confirmation feature
+  requireConfirmation        Boolean @default(false) // Require winner to confirm with PIN
+  confirmationTimeoutMinutes Int?    // Timeout in minutes for winner confirmation (auto-redraw if expired)
+
+  participants Participant[]
+  winner       Participant?  @relation("Winner", fields: [winnerId], references: [id])
+  drawHistory  DrawHistory[]
+}
+
+model Participant {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  raffleId  String
+  createdAt DateTime @default(now())
+  // PIN confirmation feature
+  pinHash   String?  // SHA-256 hash of 5-digit PIN
+
+  raffle      Raffle        @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  wonRaffle   Raffle[]      @relation("Winner")
+  drawHistory DrawHistory[]
+
+  @@unique([email, raffleId])
+}
+
+model DrawHistory {
+  id            String   @id @default(cuid())
+  raffleId      String
+  participantId String
+  drawNumber    Int      // 1, 2, 3... sequence of the draw
+  wasPresent    Boolean  @default(false) // true = winner confirmed present
+  createdAt     DateTime @default(now())
+
+  raffle      Raffle      @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  participant Participant @relation(fields: [participantId], references: [id])
+
+  @@index([raffleId])
+}
