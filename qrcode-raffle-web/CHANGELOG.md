@@ -5,6 +5,45 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.0.5] - 2025-12-06
+
+### Adicionado
+
+- **App Flutter Completo (v2.0.0)** - App mobile nativo com todas as funcionalidades
+  - Sistema de eventos com trilhas e palestras
+  - Wizard para criar eventos com trilhas e palestras
+  - Registro de presencas via QR Code
+  - Ranking de participantes por engajamento
+  - Display em tempo real para projecao
+  - Tema claro/escuro com design moderno
+  - Animacoes fluidas com flutter_animate
+  - Firebase Cloud Messaging para notificacoes
+  - Providers com Riverpod para state management
+  - GoRouter para navegacao
+
+### Melhorado
+
+- **UX Modernizado - Navegacao por Telas** - Dialogs substituidos por telas completas
+  - Confirmacoes de exclusao agora usam telas de confirmacao com animacoes
+  - Formularios de trilha e palestra sao telas dedicadas (nao dialogs)
+  - Sucesso de registro mostra tela com confetti
+  - Fluxo de navegacao inteligente em todo o app
+  - Preview em tempo real nos formularios
+  - Cores tematicas (AppColors) com suporte a dark mode
+
+- **Event Wizard Screen** - Wizard redesenhado para criar eventos
+  - Passo 1: Dados do evento (nome, datas)
+  - Passo 2: Trilhas (cor, nome, descricao)
+  - Passo 3: Palestras por trilha (titulo, palestrante, horario)
+  - Navegacao fluida com indicador de progresso
+  - Botao de adicionar trilha/palestra abre tela dedicada
+
+- **Telas Compartilhadas Reutilizaveis**
+  - `ConfirmationScreen` - Confirmacao generica com tipos (delete, close, warning, info)
+  - `SuccessScreen` - Tela de sucesso com confetti animado
+  - `TrackFormScreen` - Formulario de trilha com seletor de cor
+  - `TalkFormScreen` - Formulario de palestra com seletores de horario
+
 ## [2.0.4] - 2025-12-05
 
 ### Melhorado

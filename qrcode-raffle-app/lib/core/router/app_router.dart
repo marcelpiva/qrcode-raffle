@@ -13,6 +13,15 @@ import '../../presentation/screens/admin/raffle_detail_screen.dart';
 import '../../presentation/screens/admin/create_raffle_screen.dart';
 import '../../presentation/screens/admin/draw_screen.dart';
 import '../../presentation/screens/admin/ranking_screen.dart';
+import '../../presentation/screens/admin/events_list_screen.dart';
+import '../../presentation/screens/admin/event_detail_screen.dart';
+import '../../presentation/screens/admin/track_detail_screen.dart';
+import '../../presentation/screens/admin/talk_detail_screen.dart';
+import '../../presentation/screens/admin/event_wizard_screen.dart';
+import '../../presentation/screens/admin/create_track_screen.dart';
+import '../../presentation/screens/admin/create_talk_screen.dart';
+import '../../presentation/screens/admin/add_attendance_screen.dart';
+import '../../presentation/screens/display_screen.dart';
 import '../../presentation/providers/auth_provider.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -42,6 +51,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final publicPrefixes = [
         '/participate/',
         '/confirm/',
+        '/display/',
       ];
 
       final isPublicRoute = publicRoutes.contains(currentPath) ||
@@ -114,6 +124,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
 
+      // Display Route (for projection)
+      GoRoute(
+        path: '/display/:raffleId',
+        name: 'display',
+        builder: (context, state) {
+          final raffleId = state.pathParameters['raffleId']!;
+          return DisplayScreen(raffleId: raffleId);
+        },
+      ),
+
       // Admin Routes
       GoRoute(
         path: '/admin',
@@ -128,7 +148,26 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'raffles/new',
             name: 'create-raffle',
-            builder: (context, state) => const CreateRaffleScreen(),
+            builder: (context, state) {
+              final eventId = state.uri.queryParameters['eventId'];
+              final talkId = state.uri.queryParameters['talkId'];
+              return CreateRaffleScreen(
+                initialEventId: eventId,
+                initialTalkId: talkId,
+              );
+            },
+          ),
+          GoRoute(
+            path: 'raffles/create',
+            name: 'create-raffle-from-event',
+            builder: (context, state) {
+              final eventId = state.uri.queryParameters['eventId'];
+              final talkId = state.uri.queryParameters['talkId'];
+              return CreateRaffleScreen(
+                initialEventId: eventId,
+                initialTalkId: talkId,
+              );
+            },
           ),
           GoRoute(
             path: 'raffles/:id',
@@ -150,6 +189,65 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: 'ranking',
             name: 'ranking',
             builder: (context, state) => const RankingScreen(),
+          ),
+          // Events routes
+          GoRoute(
+            path: 'events',
+            name: 'events-list',
+            builder: (context, state) => const EventsListScreen(),
+          ),
+          GoRoute(
+            path: 'events/new',
+            name: 'create-event',
+            builder: (context, state) => const EventWizardScreen(),
+          ),
+          GoRoute(
+            path: 'events/:id',
+            name: 'event-detail',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return EventDetailScreen(eventId: id);
+            },
+          ),
+          GoRoute(
+            path: 'events/:eventId/tracks/new',
+            name: 'create-track',
+            builder: (context, state) {
+              final eventId = state.pathParameters['eventId']!;
+              return CreateTrackScreen(eventId: eventId);
+            },
+          ),
+          GoRoute(
+            path: 'tracks/:id',
+            name: 'track-detail',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return TrackDetailScreen(trackId: id);
+            },
+          ),
+          GoRoute(
+            path: 'tracks/:trackId/talks/new',
+            name: 'create-talk',
+            builder: (context, state) {
+              final trackId = state.pathParameters['trackId']!;
+              return CreateTalkScreen(trackId: trackId);
+            },
+          ),
+          GoRoute(
+            path: 'talks/:id',
+            name: 'talk-detail',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return TalkDetailScreen(talkId: id);
+            },
+          ),
+          GoRoute(
+            path: 'talks/:talkId/attendances/new',
+            name: 'add-attendance',
+            builder: (context, state) {
+              final talkId = state.pathParameters['talkId']!;
+              return AddAttendanceScreen(talkId: talkId);
+            },
           ),
         ],
       ),

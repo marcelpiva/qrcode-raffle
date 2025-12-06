@@ -40,13 +40,21 @@ class Raffle extends Equatable {
   final DateTime createdAt;
   final DateTime? closedAt;
   final int? timeboxMinutes;
+  final DateTime? startsAt;
   final DateTime? endsAt;
   final bool requireConfirmation;
   final int? confirmationTimeoutMinutes;
-  final String creatorId;
+  final String? creatorId;
   final List<Participant>? participants;
   final Participant? winner;
   final int? participantCount;
+  // Event-related fields
+  final String? eventId;
+  final String? talkId;
+  final bool autoDrawOnEnd;
+  final int? minDurationMinutes;
+  final int? minTalksCount;
+  final bool allowLinkRegistration;
 
   const Raffle({
     required this.id,
@@ -59,13 +67,20 @@ class Raffle extends Equatable {
     required this.createdAt,
     this.closedAt,
     this.timeboxMinutes,
+    this.startsAt,
     this.endsAt,
     this.requireConfirmation = false,
     this.confirmationTimeoutMinutes,
-    required this.creatorId,
+    this.creatorId,
     this.participants,
     this.winner,
     this.participantCount,
+    this.eventId,
+    this.talkId,
+    this.autoDrawOnEnd = false,
+    this.minDurationMinutes,
+    this.minTalksCount,
+    this.allowLinkRegistration = true,
   });
 
   bool get isActive => status == RaffleStatus.active;
@@ -73,15 +88,36 @@ class Raffle extends Equatable {
   bool get isDrawn => status == RaffleStatus.drawn;
   bool get hasWinner => winnerId != null;
   bool get hasTimebox => timeboxMinutes != null && endsAt != null;
+  bool get hasSchedule => startsAt != null || endsAt != null;
+  bool get isEventRaffle => eventId != null && talkId == null;
+  bool get isTalkRaffle => talkId != null;
 
   bool get isExpired {
     if (endsAt == null) return false;
     return DateTime.now().isAfter(endsAt!);
   }
 
+  bool get hasNotStarted {
+    if (startsAt == null) return false;
+    return DateTime.now().isBefore(startsAt!);
+  }
+
+  bool get isOpen {
+    if (status != RaffleStatus.active) return false;
+    if (hasNotStarted) return false;
+    if (isExpired) return false;
+    return true;
+  }
+
   Duration? get remainingTime {
     if (endsAt == null) return null;
     final remaining = endsAt!.difference(DateTime.now());
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
+
+  Duration? get timeUntilStart {
+    if (startsAt == null) return null;
+    final remaining = startsAt!.difference(DateTime.now());
     return remaining.isNegative ? Duration.zero : remaining;
   }
 
@@ -99,6 +135,7 @@ class Raffle extends Equatable {
     DateTime? createdAt,
     DateTime? closedAt,
     int? timeboxMinutes,
+    DateTime? startsAt,
     DateTime? endsAt,
     bool? requireConfirmation,
     int? confirmationTimeoutMinutes,
@@ -106,6 +143,12 @@ class Raffle extends Equatable {
     List<Participant>? participants,
     Participant? winner,
     int? participantCount,
+    String? eventId,
+    String? talkId,
+    bool? autoDrawOnEnd,
+    int? minDurationMinutes,
+    int? minTalksCount,
+    bool? allowLinkRegistration,
   }) {
     return Raffle(
       id: id ?? this.id,
@@ -118,6 +161,7 @@ class Raffle extends Equatable {
       createdAt: createdAt ?? this.createdAt,
       closedAt: closedAt ?? this.closedAt,
       timeboxMinutes: timeboxMinutes ?? this.timeboxMinutes,
+      startsAt: startsAt ?? this.startsAt,
       endsAt: endsAt ?? this.endsAt,
       requireConfirmation: requireConfirmation ?? this.requireConfirmation,
       confirmationTimeoutMinutes:
@@ -126,6 +170,13 @@ class Raffle extends Equatable {
       participants: participants ?? this.participants,
       winner: winner ?? this.winner,
       participantCount: participantCount ?? this.participantCount,
+      eventId: eventId ?? this.eventId,
+      talkId: talkId ?? this.talkId,
+      autoDrawOnEnd: autoDrawOnEnd ?? this.autoDrawOnEnd,
+      minDurationMinutes: minDurationMinutes ?? this.minDurationMinutes,
+      minTalksCount: minTalksCount ?? this.minTalksCount,
+      allowLinkRegistration:
+          allowLinkRegistration ?? this.allowLinkRegistration,
     );
   }
 
@@ -141,6 +192,7 @@ class Raffle extends Equatable {
         createdAt,
         closedAt,
         timeboxMinutes,
+        startsAt,
         endsAt,
         requireConfirmation,
         confirmationTimeoutMinutes,
@@ -148,5 +200,11 @@ class Raffle extends Equatable {
         participants,
         winner,
         participantCount,
+        eventId,
+        talkId,
+        autoDrawOnEnd,
+        minDurationMinutes,
+        minTalksCount,
+        allowLinkRegistration,
       ];
 }

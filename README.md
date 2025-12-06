@@ -36,15 +36,20 @@ Backend API REST com:
 
 **Tech Stack:** NestJS 11, Prisma, PostgreSQL, Firebase Admin, JWT
 
-### qrcode-raffle-app (Flutter) - v1.0.0
+### qrcode-raffle-app (Flutter) - v2.0.0
 
-Aplicativo mobile com:
-- Scanner de QR Code
-- Notificacoes push via Firebase
-- Telas de admin e participante
-- Acompanhamento de sorteios
+Aplicativo mobile completo com:
+- **Sistema de Eventos** - Criar e gerenciar eventos com trilhas e palestras
+- **Event Wizard** - Assistente em 3 passos para criar eventos completos
+- **Registro de Presencas** - Via QR Code com duracao calculada
+- **Ranking de Participacao** - Visualizar engajamento por evento/trilha
+- **Display em Tempo Real** - Exibicao para projecao durante eventos
+- **Sorteios Animados** - Slot machine com celebracao confetti
+- **UX Moderno** - Navegacao por telas (sem dialogs), animacoes fluidas
+- **Tema Claro/Escuro** - Suporte completo a dark mode
+- **Notificacoes Push** - Via Firebase Cloud Messaging
 
-**Tech Stack:** Flutter 3, Riverpod, GoRouter, Firebase Messaging, Dio
+**Tech Stack:** Flutter 3, Riverpod, GoRouter, Firebase Messaging, Dio, flutter_animate, confetti
 
 ## Funcionalidades
 

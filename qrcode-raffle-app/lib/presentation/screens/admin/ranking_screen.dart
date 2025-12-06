@@ -33,12 +33,41 @@ class RankingScreen extends StatelessWidget {
                 'Ranking de Participantes',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.info.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.info.withOpacity(0.3)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.schedule, size: 16, color: AppColors.info),
+                    SizedBox(width: 8),
+                    Text(
+                      'Em breve',
+                      style: TextStyle(
+                        color: AppColors.info,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 24),
-              const Text(
-                'Esta tela será implementada na Fase 5.\n'
-                'Aqui teremos o ranking geral de participantes '
-                'e a opção de criar sorteios VIP.',
+              Text(
+                'O sistema de ranking permitirá:\n\n'
+                '• Ver ranking de participação por sorteios\n'
+                '• Ver ranking por eventos/trilhas\n'
+                '• Criar sorteios VIP para participantes frequentes\n'
+                '• Filtrar por mínimo de participações',
                 textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  height: 1.5,
+                ),
               ),
             ],
           ),

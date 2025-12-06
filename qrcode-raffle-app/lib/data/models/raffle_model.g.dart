@@ -19,13 +19,16 @@ RaffleModel _$RaffleModelFromJson(Map<String, dynamic> json) => RaffleModel(
           ? null
           : DateTime.parse(json['closedAt'] as String),
       timeboxMinutes: (json['timeboxMinutes'] as num?)?.toInt(),
+      startsAt: json['startsAt'] == null
+          ? null
+          : DateTime.parse(json['startsAt'] as String),
       endsAt: json['endsAt'] == null
           ? null
           : DateTime.parse(json['endsAt'] as String),
       requireConfirmation: json['requireConfirmation'] as bool? ?? false,
       confirmationTimeoutMinutes:
           (json['confirmationTimeoutMinutes'] as num?)?.toInt(),
-      creatorId: json['creatorId'] as String,
+      creatorId: json['creatorId'] as String?,
       participants: (json['participants'] as List<dynamic>?)
           ?.map((e) => ParticipantModel.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -35,6 +38,12 @@ RaffleModel _$RaffleModelFromJson(Map<String, dynamic> json) => RaffleModel(
       count: json['_count'] == null
           ? null
           : RaffleCount.fromJson(json['_count'] as Map<String, dynamic>),
+      eventId: json['eventId'] as String?,
+      talkId: json['talkId'] as String?,
+      autoDrawOnEnd: json['autoDrawOnEnd'] as bool? ?? false,
+      minDurationMinutes: (json['minDurationMinutes'] as num?)?.toInt(),
+      minTalksCount: (json['minTalksCount'] as num?)?.toInt(),
+      allowLinkRegistration: json['allowLinkRegistration'] as bool? ?? true,
     );
 
 Map<String, dynamic> _$RaffleModelToJson(RaffleModel instance) =>
@@ -49,6 +58,7 @@ Map<String, dynamic> _$RaffleModelToJson(RaffleModel instance) =>
       'createdAt': instance.createdAt.toIso8601String(),
       'closedAt': instance.closedAt?.toIso8601String(),
       'timeboxMinutes': instance.timeboxMinutes,
+      'startsAt': instance.startsAt?.toIso8601String(),
       'endsAt': instance.endsAt?.toIso8601String(),
       'requireConfirmation': instance.requireConfirmation,
       'confirmationTimeoutMinutes': instance.confirmationTimeoutMinutes,
@@ -56,6 +66,12 @@ Map<String, dynamic> _$RaffleModelToJson(RaffleModel instance) =>
       'participants': instance.participants,
       'winner': instance.winner,
       '_count': instance.count,
+      'eventId': instance.eventId,
+      'talkId': instance.talkId,
+      'autoDrawOnEnd': instance.autoDrawOnEnd,
+      'minDurationMinutes': instance.minDurationMinutes,
+      'minTalksCount': instance.minTalksCount,
+      'allowLinkRegistration': instance.allowLinkRegistration,
     };
 
 RaffleCount _$RaffleCountFromJson(Map<String, dynamic> json) => RaffleCount(
@@ -77,6 +93,18 @@ CreateRaffleRequest _$CreateRaffleRequestFromJson(Map<String, dynamic> json) =>
       requireConfirmation: json['requireConfirmation'] as bool? ?? false,
       confirmationTimeoutMinutes:
           (json['confirmationTimeoutMinutes'] as num?)?.toInt(),
+      startsAt: json['startsAt'] == null
+          ? null
+          : DateTime.parse(json['startsAt'] as String),
+      endsAt: json['endsAt'] == null
+          ? null
+          : DateTime.parse(json['endsAt'] as String),
+      autoDrawOnEnd: json['autoDrawOnEnd'] as bool? ?? false,
+      eventId: json['eventId'] as String?,
+      talkId: json['talkId'] as String?,
+      minDurationMinutes: (json['minDurationMinutes'] as num?)?.toInt(),
+      minTalksCount: (json['minTalksCount'] as num?)?.toInt(),
+      allowLinkRegistration: json['allowLinkRegistration'] as bool? ?? true,
     );
 
 Map<String, dynamic> _$CreateRaffleRequestToJson(
@@ -89,6 +117,14 @@ Map<String, dynamic> _$CreateRaffleRequestToJson(
       'timeboxMinutes': instance.timeboxMinutes,
       'requireConfirmation': instance.requireConfirmation,
       'confirmationTimeoutMinutes': instance.confirmationTimeoutMinutes,
+      'startsAt': instance.startsAt?.toIso8601String(),
+      'endsAt': instance.endsAt?.toIso8601String(),
+      'autoDrawOnEnd': instance.autoDrawOnEnd,
+      'eventId': instance.eventId,
+      'talkId': instance.talkId,
+      'minDurationMinutes': instance.minDurationMinutes,
+      'minTalksCount': instance.minTalksCount,
+      'allowLinkRegistration': instance.allowLinkRegistration,
     };
 
 UpdateRaffleRequest _$UpdateRaffleRequestFromJson(Map<String, dynamic> json) =>
@@ -102,26 +138,38 @@ UpdateRaffleRequest _$UpdateRaffleRequestFromJson(Map<String, dynamic> json) =>
       requireConfirmation: json['requireConfirmation'] as bool?,
       confirmationTimeoutMinutes:
           (json['confirmationTimeoutMinutes'] as num?)?.toInt(),
+      allowLinkRegistration: json['allowLinkRegistration'] as bool?,
+      autoDrawOnEnd: json['autoDrawOnEnd'] as bool?,
     );
 
-Map<String, dynamic> _$UpdateRaffleRequestToJson(
-        UpdateRaffleRequest instance) =>
-    <String, dynamic>{
-      'name': instance.name,
-      'description': instance.description,
-      'prize': instance.prize,
-      'allowedDomain': instance.allowedDomain,
-      'status': instance.status,
-      'timeboxMinutes': instance.timeboxMinutes,
-      'requireConfirmation': instance.requireConfirmation,
-      'confirmationTimeoutMinutes': instance.confirmationTimeoutMinutes,
-    };
+Map<String, dynamic> _$UpdateRaffleRequestToJson(UpdateRaffleRequest instance) {
+  final val = <String, dynamic>{};
+
+  void writeNotNull(String key, dynamic value) {
+    if (value != null) {
+      val[key] = value;
+    }
+  }
+
+  writeNotNull('name', instance.name);
+  writeNotNull('description', instance.description);
+  writeNotNull('prize', instance.prize);
+  writeNotNull('allowedDomain', instance.allowedDomain);
+  writeNotNull('status', instance.status);
+  writeNotNull('timeboxMinutes', instance.timeboxMinutes);
+  writeNotNull('requireConfirmation', instance.requireConfirmation);
+  writeNotNull(
+      'confirmationTimeoutMinutes', instance.confirmationTimeoutMinutes);
+  writeNotNull('allowLinkRegistration', instance.allowLinkRegistration);
+  writeNotNull('autoDrawOnEnd', instance.autoDrawOnEnd);
+  return val;
+}
 
 DrawResultModel _$DrawResultModelFromJson(Map<String, dynamic> json) =>
     DrawResultModel(
       raffle: RaffleModel.fromJson(json['raffle'] as Map<String, dynamic>),
       winner: ParticipantModel.fromJson(json['winner'] as Map<String, dynamic>),
-      drawNumber: (json['drawNumber'] as num).toInt(),
+      drawNumber: (json['drawNumber'] as num?)?.toInt(),
     );
 
 Map<String, dynamic> _$DrawResultModelToJson(DrawResultModel instance) =>

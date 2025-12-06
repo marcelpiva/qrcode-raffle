@@ -5,6 +5,39 @@ Todas as mudancas notaveis neste projeto serao documentadas neste arquivo.
 O formato e baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.0.5] - 2025-12-06
+
+### Adicionado
+
+- **App Flutter Completo (v2.0.0)** - App mobile nativo com todas as funcionalidades
+  - Sistema de eventos com trilhas e palestras
+  - Wizard para criar eventos com trilhas e palestras em 3 passos
+  - Registro de presencas via QR Code
+  - Ranking de participantes por engajamento
+  - Display em tempo real para projecao
+  - Tema claro/escuro com design moderno
+  - Animacoes fluidas com flutter_animate e confetti
+  - Firebase Cloud Messaging para notificacoes push
+  - Providers com Riverpod para state management
+  - GoRouter para navegacao
+
+### Melhorado
+
+- **UX Modernizado (App) - Navegacao por Telas** - Dialogs substituidos por telas completas
+  - Confirmacoes de exclusao usam telas animadas em vez de dialogs
+  - Formularios de trilha e palestra sao telas dedicadas com preview em tempo real
+  - Sucesso de registro exibe tela com confetti animado
+  - Event Wizard redesenhado com indicador de progresso visual
+  - Cores tematicas (AppColors) com suporte completo a dark mode
+
+- **Novas Telas Compartilhadas**
+  - `ConfirmationScreen` - Confirmacao generica com tipos (delete, close, warning, info)
+  - `SuccessScreen` - Tela de sucesso com confetti animado
+  - `TrackFormScreen` - Formulario de trilha com seletor de cor
+  - `TalkFormScreen` - Formulario de palestra com seletores de horario
+
+---
+
 ## [2.0.0] - 2025-12-05
 
 ### Adicionado

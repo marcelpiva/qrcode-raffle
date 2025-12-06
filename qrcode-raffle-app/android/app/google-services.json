@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1055457110514",
+    "project_id": "raffle-b89bc",
+    "storage_bucket": "raffle-b89bc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1055457110514:android:0eba1fcbf10428e9aa636b",
+        "android_client_info": {
+          "package_name": "com.qrcoderaffle.qrcode_raffle_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDX3oMXhx_LGyluKR6JbK8NOVuHXoOY5is"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
