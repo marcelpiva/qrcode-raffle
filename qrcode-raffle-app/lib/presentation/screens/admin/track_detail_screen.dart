@@ -1,21 +1,63 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../../domain/entities/track.dart';
 import '../../../domain/entities/talk.dart';
 import '../../providers/events_provider.dart';
 import '../shared/confirmation_screen.dart';
 
-class TrackDetailScreen extends ConsumerWidget {
+// NAVA SUMMIT Colors (top-level for access by helper widgets)
+const Color _primaryPurple = Color(0xFF9333EA);
+const Color _primaryPink = Color(0xFFDB2777);
+const Color _darkBg = Color(0xFF09090B);
+const Color _cardBg = Color(0xFF18181B);
+const Color _cardBorder = Color(0xFF27272A);
+const Color _textPrimary = Color(0xFFFAFAFA);
+const Color _textSecondary = Color(0xFFA1A1AA);
+const Color _textTertiary = Color(0xFF71717A);
+const Color _successGreen = Color(0xFF22C55E);
+const Color _warningOrange = Color(0xFFF97316);
+const Color _infoBlue = Color(0xFF3B82F6);
+const Color _errorRed = Color(0xFFEF4444);
+
+class TrackDetailScreen extends ConsumerStatefulWidget {
   final String trackId;
 
   const TrackDetailScreen({super.key, required this.trackId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TrackDetailScreen> createState() => _TrackDetailScreenState();
+}
+
+class _TrackDetailScreenState extends ConsumerState<TrackDetailScreen>
+    with WidgetsBindingObserver {
+  String get trackId => widget.trackId;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh data when app comes back to foreground
+      ref.read(trackDetailProvider(trackId).notifier).refresh();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(trackDetailProvider(trackId));
 
     ref.listen<TrackDetailState>(
@@ -25,7 +67,7 @@ class TrackDetailScreen extends ConsumerWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(next.actionError!),
-              backgroundColor: AppColors.error,
+              backgroundColor: _errorRed,
             ),
           );
           ref.read(trackDetailProvider(trackId).notifier).clearActionError();
@@ -34,33 +76,55 @@ class TrackDetailScreen extends ConsumerWidget {
     );
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(state.track?.name ?? 'Trilha'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => ref.read(trackDetailProvider(trackId).notifier).refresh(),
-            tooltip: 'Atualizar',
+      backgroundColor: _darkBg,
+      body: _buildContent(context, ref, state),
+      floatingActionButton: state.track != null ? _buildGradientFAB(context) : null,
+    );
+  }
+
+  Widget _buildGradientFAB(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [_primaryPurple, _primaryPink],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: _primaryPurple.withOpacity(0.4),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      body: _buildContent(context, ref, state),
-      floatingActionButton: state.track != null
-          ? FloatingActionButton.extended(
-              onPressed: () => context.push('/admin/tracks/$trackId/talks/new'),
-              icon: const Icon(Icons.add),
-              label: const Text('Nova Palestra'),
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            )
-          : null,
+      child: FloatingActionButton.extended(
+        onPressed: () async {
+          final result = await context.push('/admin/tracks/$trackId/talks/new');
+          // Force refresh after creating a talk
+          if (result == true) {
+            await ref.read(trackDetailProvider(trackId).notifier).refresh();
+          }
+        },
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        icon: const Icon(Icons.add_rounded),
+        label: const Text(
+          'Nova Palestra',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
     );
   }
 
   Widget _buildContent(BuildContext context, WidgetRef ref, TrackDetailState state) {
     if (state.isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
+      return Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(_primaryPurple),
+        ),
       );
     }
 
@@ -69,141 +133,198 @@ class TrackDetailScreen extends ConsumerWidget {
     }
 
     if (state.track == null) {
-      return const Center(
-        child: Text('Trilha não encontrada'),
-      );
+      return _buildNotFound(context);
     }
 
     return RefreshIndicator(
       onRefresh: () => ref.read(trackDetailProvider(trackId).notifier).refresh(),
-      child: SingleChildScrollView(
+      color: _primaryPurple,
+      backgroundColor: _cardBg,
+      child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 100),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildTrackHeader(context, state.track!),
-            _buildStatsSection(context, state.track!),
-            _buildTalksSection(context, ref, state),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTrackHeader(BuildContext context, Track track) {
-    final trackColor = _getTrackColor(track.color);
-
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            trackColor,
-            trackColor.withOpacity(0.8),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.layers,
-              color: Colors.white,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
+        slivers: [
+          _buildSliverHeader(context, ref, state.track!),
+          SliverToBoxAdapter(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  track.name,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                if (track.description != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    track.description!,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                _buildStatsSection(context, state.track!),
+                _buildTalksSection(context, ref, state),
+                const SizedBox(height: 100),
               ],
             ),
           ),
         ],
       ),
-    ).animate().fadeIn().slideY(begin: -0.1);
+    );
+  }
+
+  Widget _buildSliverHeader(BuildContext context, WidgetRef ref, Track track) {
+    final trackColor = _getTrackColor(track.color);
+
+    return SliverAppBar(
+      expandedHeight: 200,
+      pinned: true,
+      backgroundColor: _darkBg,
+      leading: Container(
+        margin: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.black26,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+          onPressed: () => context.pop(),
+        ),
+      ),
+      actions: [
+        Container(
+          margin: const EdgeInsets.only(right: 8),
+          decoration: BoxDecoration(
+            color: Colors.black26,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+            onPressed: () => ref.read(trackDetailProvider(trackId).notifier).refresh(),
+            tooltip: 'Atualizar',
+          ),
+        ),
+      ],
+      flexibleSpace: FlexibleSpaceBar(
+        background: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [trackColor, trackColor.withOpacity(0.7)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Stack(
+            children: [
+              // Decorative circles
+              Positioned(
+                right: -50,
+                top: -50,
+                child: Container(
+                  width: 200,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withOpacity(0.1),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: -30,
+                bottom: -30,
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withOpacity(0.08),
+                  ),
+                ),
+              ),
+              // Content
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 60, 20, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Icon(
+                              Icons.layers_rounded,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'TRILHA',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  track.name,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (track.description != null) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          track.description!,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildStatsSection(BuildContext context, Track track) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          // Use Row for wide screens, Column for narrow
-          if (constraints.maxWidth > 300) {
-            return Row(
-              children: [
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.mic,
-                    value: '${track.totalTalks}',
-                    label: 'Palestras',
-                    color: AppColors.info,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.people,
-                    value: '${track.totalAttendances}',
-                    label: 'Presenças',
-                    color: AppColors.success,
-                  ),
-                ),
-              ],
-            );
-          } else {
-            return Column(
-              children: [
-                _StatCard(
-                  icon: Icons.mic,
-                  value: '${track.totalTalks}',
-                  label: 'Palestras',
-                  color: AppColors.info,
-                  horizontal: true,
-                ),
-                const SizedBox(height: 8),
-                _StatCard(
-                  icon: Icons.people,
-                  value: '${track.totalAttendances}',
-                  label: 'Presenças',
-                  color: AppColors.success,
-                  horizontal: true,
-                ),
-              ],
-            );
-          }
-        },
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          Expanded(
+            child: _GlassStatCard(
+              icon: Icons.mic_rounded,
+              value: '${track.totalTalks}',
+              label: 'Palestras',
+              color: _infoBlue,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _GlassStatCard(
+              icon: Icons.people_rounded,
+              value: '${track.totalAttendances}',
+              label: 'Presenças',
+              color: _successGreen,
+            ),
+          ),
+        ],
       ),
     ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.1);
   }
@@ -213,12 +334,51 @@ class TrackDetailScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
-          child: Text(
-            'Palestras',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [_primaryPurple.withOpacity(0.2), _primaryPink.withOpacity(0.2)],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: ShaderMask(
+                  shaderCallback: (bounds) => const LinearGradient(
+                    colors: [_primaryPurple, _primaryPink],
+                  ).createShader(bounds),
+                  child: const Icon(Icons.mic_rounded, color: Colors.white, size: 20),
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Palestras',
+                style: TextStyle(
+                  color: _textPrimary,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _cardBg,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: _cardBorder),
+                ),
+                child: Text(
+                  '${state.talks.length}',
+                  style: const TextStyle(
+                    color: _textSecondary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         if (state.talks.isEmpty)
@@ -227,6 +387,7 @@ class TrackDetailScreen extends ConsumerWidget {
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             itemCount: state.talks.length,
             itemBuilder: (context, index) {
               final talk = state.talks[index];
@@ -246,36 +407,91 @@ class TrackDetailScreen extends ConsumerWidget {
 
   Widget _buildEmptyTalks(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(32),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(40),
       decoration: BoxDecoration(
-        color: AppColors.surfaceVariant(context),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border(context)),
+        color: _cardBg,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _cardBorder),
       ),
       child: Column(
         children: [
-          Icon(
-            Icons.mic_off_outlined,
-            size: 48,
-            color: AppColors.textTertiary(context),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [_primaryPurple.withOpacity(0.1), _primaryPink.withOpacity(0.1)],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [_primaryPurple, _primaryPink],
+              ).createShader(bounds),
+              child: const Icon(
+                Icons.mic_off_rounded,
+                size: 40,
+                color: Colors.white,
+              ),
+            ),
           ),
-          const SizedBox(height: 16),
-          Text(
+          const SizedBox(height: 20),
+          const Text(
             'Nenhuma palestra criada',
             style: TextStyle(
-              color: AppColors.textSecondary(context),
-              fontSize: 14,
+              color: _textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            'Adicione palestras para esta trilha',
+          const Text(
+            'Adicione palestras para esta trilha\nusando o botão abaixo',
             style: TextStyle(
-              color: AppColors.textTertiary(context),
-              fontSize: 12,
+              color: _textTertiary,
+              fontSize: 14,
             ),
             textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    ).animate().fadeIn().scale(begin: const Offset(0.95, 0.95));
+  }
+
+  Widget _buildNotFound(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: _cardBg,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.search_off_rounded,
+              size: 48,
+              color: _textTertiary,
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Trilha não encontrada',
+            style: TextStyle(
+              color: _textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 24),
+          TextButton.icon(
+            onPressed: () => context.pop(),
+            icon: const Icon(Icons.arrow_back),
+            label: const Text('Voltar'),
+            style: TextButton.styleFrom(
+              foregroundColor: _primaryPurple,
+            ),
           ),
         ],
       ),
@@ -292,26 +508,43 @@ class TrackDetailScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
+                color: _errorRed.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: const Icon(
-                Icons.error_outline,
+                Icons.error_outline_rounded,
                 size: 64,
-                color: AppColors.error,
+                color: _errorRed,
               ),
             ),
             const SizedBox(height: 24),
             Text(
               error,
-              style: Theme.of(context).textTheme.titleMedium,
+              style: const TextStyle(
+                color: _textPrimary,
+                fontSize: 16,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => ref.read(trackDetailProvider(trackId).notifier).refresh(),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Tentar novamente'),
+            Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [_primaryPurple, _primaryPink],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ElevatedButton.icon(
+                onPressed: () => ref.read(trackDetailProvider(trackId).notifier).refresh(),
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Tentar novamente'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  shadowColor: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              ),
             ),
           ],
         ),
@@ -320,11 +553,11 @@ class TrackDetailScreen extends ConsumerWidget {
   }
 
   Color _getTrackColor(String? color) {
-    if (color == null) return AppColors.primary;
+    if (color == null) return _primaryPurple;
     try {
       return Color(int.parse(color.replaceAll('#', '0xFF')));
     } catch (_) {
-      return AppColors.primary;
+      return _primaryPurple;
     }
   }
 
@@ -340,89 +573,84 @@ class TrackDetailScreen extends ConsumerWidget {
     );
 
     if (confirmed) {
-      ref.read(trackDetailProvider(trackId).notifier).deleteTalk(talk.id);
+      // Get the track to find the eventId before deleting
+      final trackState = ref.read(trackDetailProvider(trackId));
+      final eventId = trackState.track?.eventId;
+
+      await ref.read(trackDetailProvider(trackId).notifier).deleteTalk(talk.id);
+
+      // Invalidate eventDetailProvider so timeline in EventsCarouselScreen updates
+      if (eventId != null) {
+        ref.invalidate(eventDetailProvider(eventId));
+      }
+
+      // Invalidate events list to force full reload
+      ref.invalidate(eventsListProvider);
     }
   }
 }
 
-class _StatCard extends StatelessWidget {
+class _GlassStatCard extends StatelessWidget {
   final IconData icon;
   final String value;
   final String label;
   final Color color;
-  final bool horizontal;
 
-  const _StatCard({
+  const _GlassStatCard({
     required this.icon,
     required this.value,
     required this.label,
     required this.color,
-    this.horizontal = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (horizontal) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(width: 12),
-            Text(
-              label,
-              style: TextStyle(
-                color: color.withOpacity(0.8),
-                fontSize: 14,
-              ),
-            ),
-            const Spacer(),
-            Text(
-              value,
-              style: TextStyle(
-                color: color,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: _cardBg.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _cardBorder),
           ),
-          Text(
-            label,
-            style: TextStyle(
-              color: color.withOpacity(0.8),
-              fontSize: 12,
-            ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(height: 12),
+              ShaderMask(
+                shaderCallback: (bounds) => LinearGradient(
+                  colors: [color, color.withOpacity(0.7)],
+                ).createShader(bounds),
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: _textSecondary,
+                  fontSize: 13,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -441,123 +669,151 @@ class _TalkCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.info.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.mic,
-                      color: AppColors.info,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          talk.title,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: _cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _cardBorder),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            _primaryPurple.withOpacity(0.2),
+                            _primaryPink.withOpacity(0.2),
+                          ],
                         ),
-                        if (talk.speaker != null) ...[
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.person_outline,
-                                size: 14,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  talk.speaker!,
-                                  style: TextStyle(
-                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                    fontSize: 12,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ShaderMask(
+                        shaderCallback: (bounds) => const LinearGradient(
+                          colors: [_primaryPurple, _primaryPink],
+                        ).createShader(bounds),
+                        child: const Icon(
+                          Icons.mic_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            talk.title,
+                            style: const TextStyle(
+                              color: _textPrimary,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (talk.speaker != null) ...[
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.person_outline_rounded,
+                                  size: 14,
+                                  color: _textSecondary,
                                 ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    talk.speaker!,
+                                    style: const TextStyle(
+                                      color: _textSecondary,
+                                      fontSize: 13,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    PopupMenuButton(
+                      icon: const Icon(
+                        Icons.more_vert_rounded,
+                        color: _textTertiary,
+                      ),
+                      color: _cardBg,
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.delete_outline_rounded, color: _errorRed),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Excluir',
+                                style: TextStyle(color: _errorRed),
                               ),
                             ],
                           ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  PopupMenuButton(
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete_outline, color: AppColors.error),
-                            SizedBox(width: 8),
-                            Text('Excluir', style: TextStyle(color: AppColors.error)),
-                          ],
                         ),
+                      ],
+                      onSelected: (value) {
+                        if (value == 'delete') {
+                          onDelete();
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    if (talk.startTime != null)
+                      _buildChip(
+                        Icons.schedule_rounded,
+                        DateFormat('HH:mm').format(talk.startTime!.toLocal()),
+                        _warningOrange,
                       ),
-                    ],
-                    onSelected: (value) {
-                      if (value == 'delete') {
-                        onDelete();
-                      }
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  if (talk.startTime != null)
+                    if (talk.durationMinutes != null)
+                      _buildChip(
+                        Icons.timer_outlined,
+                        talk.formattedDuration,
+                        _infoBlue,
+                      ),
+                    if (talk.room != null)
+                      _buildChip(
+                        Icons.meeting_room_outlined,
+                        talk.room!,
+                        _primaryPurple,
+                      ),
                     _buildChip(
-                      Icons.schedule,
-                      DateFormat('HH:mm').format(talk.startTime!.toLocal()),
-                      AppColors.warning,
+                      Icons.people_outline_rounded,
+                      '${talk.totalAttendances}',
+                      _successGreen,
                     ),
-                  if (talk.durationMinutes != null)
-                    _buildChip(
-                      Icons.timer_outlined,
-                      talk.formattedDuration,
-                      AppColors.secondary,
-                    ),
-                  if (talk.room != null)
-                    _buildChip(
-                      Icons.meeting_room_outlined,
-                      talk.room!,
-                      AppColors.info,
-                    ),
-                  _buildChip(
-                    Icons.people_outline,
-                    '${talk.totalAttendances}',
-                    AppColors.success,
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -566,21 +822,21 @@ class _TalkCard extends StatelessWidget {
 
   Widget _buildChip(IconData icon, String label, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: color),
+          Icon(icon, size: 14, color: color),
           const SizedBox(width: 4),
           Text(
             label,
             style: TextStyle(
               color: color,
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
           ),

@@ -33,9 +33,9 @@ dependencies:
   flutter_secure_storage: ^9.0.0
   shared_preferences: ^2.2.2
 
-  # Firebase
+  # Firebase (messaging temporarily disabled for iOS build)
   firebase_core: ^2.27.0
-  firebase_messaging: ^14.7.17
+  # firebase_messaging: ^14.7.17  # TODO: Update to 15+ when available
   flutter_local_notifications: ^17.0.0
 
   # Typography

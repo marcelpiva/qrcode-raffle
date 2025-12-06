@@ -1,9 +1,9 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../../domain/entities/event.dart';
 import '../../../domain/entities/track.dart';
 import '../../../domain/entities/raffle.dart';
@@ -11,13 +11,51 @@ import '../../providers/events_provider.dart';
 import '../../providers/raffle_provider.dart';
 import '../shared/confirmation_screen.dart';
 
-class EventDetailScreen extends ConsumerWidget {
+// NAVA SUMMIT colors (top-level for access by helper widgets)
+const Color _primaryPurple = Color(0xFF9333EA);
+const Color _primaryPink = Color(0xFFDB2777);
+const Color _darkBg = Color(0xFF09090B);
+const Color _cardBg = Color(0xFF18181B);
+const Color _successGreen = Color(0xFF10B981);
+const Color _warningOrange = Color(0xFFF59E0B);
+const Color _infoBlue = Color(0xFF3B82F6);
+const Color _errorRed = Color(0xFFEF4444);
+
+class EventDetailScreen extends ConsumerStatefulWidget {
   final String eventId;
 
   const EventDetailScreen({super.key, required this.eventId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EventDetailScreen> createState() => _EventDetailScreenState();
+}
+
+class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
+    with WidgetsBindingObserver {
+  String get eventId => widget.eventId;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh data when app comes back to foreground
+      ref.read(eventDetailProvider(eventId).notifier).refresh();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(eventDetailProvider(eventId));
 
     ref.listen<EventDetailState>(
@@ -27,7 +65,7 @@ class EventDetailScreen extends ConsumerWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(next.actionError!),
-              backgroundColor: AppColors.error,
+              backgroundColor: _errorRed,
             ),
           );
           ref.read(eventDetailProvider(eventId).notifier).clearActionError();
@@ -36,43 +74,42 @@ class EventDetailScreen extends ConsumerWidget {
     );
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(state.event?.name ?? 'Evento'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => ref.read(eventDetailProvider(eventId).notifier).refresh(),
-            tooltip: 'Atualizar',
-          ),
-          PopupMenuButton(
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete_outline, color: AppColors.error),
-                    SizedBox(width: 8),
-                    Text('Excluir Evento', style: TextStyle(color: AppColors.error)),
-                  ],
-                ),
-              ),
-            ],
-            onSelected: (value) {
-              if (value == 'delete' && state.event != null) {
-                _showDeleteEventDialog(context, ref, state.event!, state.tracks.length);
-              }
-            },
-          ),
-        ],
-      ),
+      backgroundColor: _darkBg,
       body: _buildContent(context, ref, state),
       floatingActionButton: state.event != null
-          ? FloatingActionButton.extended(
-              onPressed: () => context.push('/admin/events/$eventId/tracks/new'),
-              icon: const Icon(Icons.add),
-              label: const Text('Nova Trilha'),
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+          ? Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: const LinearGradient(
+                  colors: [_primaryPurple, _primaryPink],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: _primaryPurple.withOpacity(0.4),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: FloatingActionButton.extended(
+                onPressed: () async {
+                  await context.push('/admin/events/$eventId/tracks/new');
+                  // Refresh when returning from create screen
+                  ref.read(eventDetailProvider(eventId).notifier).refresh();
+                },
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                icon: const Icon(Icons.add, color: Colors.white),
+                label: const Text(
+                  'Nova Trilha',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             )
           : null,
     );
@@ -81,7 +118,7 @@ class EventDetailScreen extends ConsumerWidget {
   Widget _buildContent(BuildContext context, WidgetRef ref, EventDetailState state) {
     if (state.isLoading) {
       return const Center(
-        child: CircularProgressIndicator(),
+        child: CircularProgressIndicator(color: _primaryPurple),
       );
     }
 
@@ -90,8 +127,11 @@ class EventDetailScreen extends ConsumerWidget {
     }
 
     if (state.event == null) {
-      return const Center(
-        child: Text('Evento não encontrado'),
+      return Center(
+        child: Text(
+          'Evento não encontrado',
+          style: TextStyle(color: Colors.white.withOpacity(0.6)),
+        ),
       );
     }
 
@@ -108,278 +148,489 @@ class EventDetailScreen extends ConsumerWidget {
         await ref.read(eventDetailProvider(eventId).notifier).refresh();
         await ref.read(raffleListProvider.notifier).refresh();
       },
-      child: SingleChildScrollView(
+      color: _primaryPurple,
+      child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 100),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildEventHeader(context, state.event!),
-            _buildStatsSection(context, state.event!),
-            _buildTracksSection(context, ref, state),
-            _buildRafflesSection(context, ref, eventRaffles),
-          ],
+        slivers: [
+          // Gradient Header
+          SliverToBoxAdapter(
+            child: _buildHeader(context, ref, state.event!),
+          ),
+          // Stats
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+              child: _buildStatsSection(context, state.event!)
+                  .animate()
+                  .fadeIn(delay: 100.ms, duration: 400.ms)
+                  .slideY(begin: 0.1, end: 0, delay: 100.ms, duration: 400.ms),
+            ),
+          ),
+          // Tracks
+          SliverToBoxAdapter(
+            child: _buildTracksSection(context, ref, state)
+                .animate()
+                .fadeIn(delay: 200.ms, duration: 400.ms)
+                .slideY(begin: 0.1, end: 0, delay: 200.ms, duration: 400.ms),
+          ),
+          // Raffles
+          SliverToBoxAdapter(
+            child: _buildRafflesSection(context, ref, eventRaffles)
+                .animate()
+                .fadeIn(delay: 300.ms, duration: 400.ms)
+                .slideY(begin: 0.1, end: 0, delay: 300.ms, duration: 400.ms),
+          ),
+          // Bottom spacing
+          const SliverToBoxAdapter(
+            child: SizedBox(height: 100),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, WidgetRef ref, Event event) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [_primaryPurple, _primaryPink],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top bar with actions
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  GestureDetector(
+                    onTap: () => context.pop(),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.arrow_back,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => ref.read(eventDetailProvider(eventId).notifier).refresh(),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.refresh,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      PopupMenuButton(
+                        icon: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.more_vert,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        color: _cardBg,
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete_outline, color: _errorRed),
+                                const SizedBox(width: 8),
+                                Text('Excluir Evento', style: TextStyle(color: _errorRed)),
+                              ],
+                            ),
+                          ),
+                        ],
+                        onSelected: (value) {
+                          if (value == 'delete') {
+                            final state = ref.read(eventDetailProvider(eventId));
+                            if (state.event != null) {
+                              _showDeleteEventDialog(context, ref, state.event!, state.tracks.length);
+                            }
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              // Event icon and status
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(
+                      Icons.event,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  _buildStatusBadge(event),
+                ],
+              ).animate()
+                  .fadeIn(duration: 300.ms)
+                  .slideX(begin: -0.1, end: 0, duration: 300.ms),
+              const SizedBox(height: 16),
+              // Event name
+              Text(
+                event.name,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.5,
+                ),
+              ).animate()
+                  .fadeIn(delay: 100.ms, duration: 300.ms)
+                  .slideX(begin: -0.1, end: 0, delay: 100.ms, duration: 300.ms),
+              // Location
+              if (event.location != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.location_on_outlined,
+                      size: 16,
+                      color: Colors.white.withOpacity(0.8),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        event.location!,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.8),
+                          fontSize: 14,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ).animate()
+                    .fadeIn(delay: 150.ms, duration: 300.ms),
+              ],
+              // Description
+              if (event.description != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  event.description!,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ).animate()
+                    .fadeIn(delay: 200.ms, duration: 300.ms),
+              ],
+              // Date range
+              if (event.startDate != null || event.endDate != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.2),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.calendar_today_outlined,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        _getDateRangeText(event),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ).animate()
+                    .fadeIn(delay: 250.ms, duration: 300.ms)
+                    .scale(begin: const Offset(0.95, 0.95), end: const Offset(1, 1), delay: 250.ms, duration: 300.ms),
+              ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildEventHeader(BuildContext context, Event event) {
+  Widget _buildStatusBadge(Event event) {
+    String label;
+    IconData icon;
+    List<Color> colors;
+
+    if (event.hasEnded) {
+      label = 'Encerrado';
+      icon = Icons.check_circle;
+      colors = [const Color(0xFF6B7280), const Color(0xFF4B5563)];
+    } else if (event.isOngoing) {
+      label = 'Ativo';
+      icon = Icons.play_circle;
+      colors = [_successGreen, const Color(0xFF059669)];
+    } else {
+      label = 'Em breve';
+      icon = Icons.schedule;
+      colors = [_infoBlue, const Color(0xFF2563EB)];
+    }
+
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            AppColors.primary,
-            AppColors.primary.withOpacity(0.8),
-          ],
+          colors: colors,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: colors[0].withOpacity(0.4),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.white),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsSection(BuildContext context, Event event) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _primaryPurple.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.analytics_outlined,
+                color: _primaryPurple,
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Estatísticas',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _GlassStatCard(
+                title: 'Trilhas',
+                value: '${event.totalTracks}',
+                icon: Icons.layers_outlined,
+                gradient: [_primaryPurple, const Color(0xFF7C3AED)],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _GlassStatCard(
+                title: 'Palestras',
+                value: '${event.totalTalks}',
+                icon: Icons.mic_outlined,
+                gradient: [_infoBlue, const Color(0xFF2563EB)],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _GlassStatCard(
+                title: 'Presenças',
+                value: '${event.totalAttendances}',
+                icon: Icons.people_outline,
+                gradient: [_successGreen, const Color(0xFF059669)],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTracksSection(BuildContext context, WidgetRef ref, EventDetailState state) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 28, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
+                  color: _warningOrange.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
-                  Icons.event,
-                  color: Colors.white,
-                  size: 28,
+                  Icons.layers_outlined,
+                  color: _warningOrange,
+                  size: 18,
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      event.name,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    if (event.location != null) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.location_on,
-                            size: 16,
-                            color: Colors.white70,
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              event.location!,
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 14,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ],
+              const SizedBox(width: 10),
+              const Text(
+                'Trilhas',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${state.tracks.length}',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.5),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
-          if (event.description != null) ...[
-            const SizedBox(height: 16),
-            Text(
-              event.description!,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-              ),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
+          const SizedBox(height: 16),
+          if (state.tracks.isEmpty)
+            _buildEmptyTracks(context)
+          else
+            Column(
+              children: state.tracks.asMap().entries.map((entry) {
+                final index = entry.key;
+                final track = entry.value;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _TrackCard(
+                    track: track,
+                    onTap: () => context.push('/admin/tracks/${track.id}'),
+                    onDelete: () => _showDeleteTrackDialog(context, ref, track),
+                  ).animate()
+                      .fadeIn(delay: (50 * index).ms, duration: 300.ms)
+                      .slideX(begin: 0.05, end: 0, delay: (50 * index).ms, duration: 300.ms),
+                );
+              }).toList(),
             ),
-          ],
-          if (event.startDate != null || event.endDate != null) ...[
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.calendar_today,
-                    size: 16,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _getDateRangeText(event),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ],
       ),
-    ).animate().fadeIn().slideY(begin: -0.1);
-  }
-
-  Widget _buildStatsSection(BuildContext context, Event event) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          // Use Row for wide screens, Column for narrow
-          if (constraints.maxWidth > 400) {
-            return Row(
-              children: [
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.layers,
-                    value: '${event.totalTracks}',
-                    label: 'Trilhas',
-                    color: AppColors.info,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.mic,
-                    value: '${event.totalTalks}',
-                    label: 'Palestras',
-                    color: AppColors.secondary,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.people,
-                    value: '${event.totalAttendances}',
-                    label: 'Presenças',
-                    color: AppColors.success,
-                  ),
-                ),
-              ],
-            );
-          } else {
-            return Column(
-              children: [
-                _StatCard(
-                  icon: Icons.layers,
-                  value: '${event.totalTracks}',
-                  label: 'Trilhas',
-                  color: AppColors.info,
-                  horizontal: true,
-                ),
-                const SizedBox(height: 8),
-                _StatCard(
-                  icon: Icons.mic,
-                  value: '${event.totalTalks}',
-                  label: 'Palestras',
-                  color: AppColors.secondary,
-                  horizontal: true,
-                ),
-                const SizedBox(height: 8),
-                _StatCard(
-                  icon: Icons.people,
-                  value: '${event.totalAttendances}',
-                  label: 'Presenças',
-                  color: AppColors.success,
-                  horizontal: true,
-                ),
-              ],
-            );
-          }
-        },
-      ),
-    ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.1);
-  }
-
-  Widget _buildTracksSection(BuildContext context, WidgetRef ref, EventDetailState state) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
-          child: Text(
-            'Trilhas',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-        ),
-        if (state.tracks.isEmpty)
-          _buildEmptyTracks(context)
-        else
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: state.tracks.length,
-            itemBuilder: (context, index) {
-              final track = state.tracks[index];
-              return _TrackCard(
-                track: track,
-                onTap: () => context.push('/admin/tracks/${track.id}'),
-                onDelete: () => _showDeleteTrackDialog(context, ref, track),
-              ).animate().fadeIn(
-                    delay: Duration(milliseconds: 50 * index + 200),
-                    duration: const Duration(milliseconds: 300),
-                  );
-            },
-          ),
-      ],
     );
   }
 
   Widget _buildEmptyTracks(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
+        color: _cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[300]!),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+          width: 1,
+        ),
       ),
       child: Column(
         children: [
-          Icon(
-            Icons.layers_outlined,
-            size: 48,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Nenhuma trilha criada',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 14,
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [_warningOrange.withOpacity(0.2), _warningOrange.withOpacity(0.1)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: _warningOrange.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Icon(
+              Icons.layers_outlined,
+              size: 36,
+              color: _warningOrange,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
+          const Text(
+            'Nenhuma trilha criada',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              fontSize: 15,
+            ),
+          ),
+          const SizedBox(height: 6),
           Text(
             'Adicione trilhas para organizar suas palestras',
             style: TextStyle(
-              color: Colors.grey[500],
-              fontSize: 12,
+              color: Colors.white.withOpacity(0.5),
+              fontSize: 13,
             ),
             textAlign: TextAlign.center,
           ),
@@ -389,80 +640,135 @@ class EventDetailScreen extends ConsumerWidget {
   }
 
   Widget _buildRafflesSection(BuildContext context, WidgetRef ref, List<Raffle> raffles) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 28, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Text(
-                'Sorteios',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _primaryPink.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.card_giftcard_outlined,
+                  color: _primaryPink,
+                  size: 18,
+                ),
               ),
-              TextButton.icon(
-                onPressed: () => context.push('/admin/raffles/create?eventId=$eventId'),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Criar Sorteio'),
+              const SizedBox(width: 10),
+              const Text(
+                'Sorteios',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => context.push('/admin/raffles/create?eventId=$eventId'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _primaryPink.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add, color: _primaryPink, size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        'Criar',
+                        style: TextStyle(
+                          color: _primaryPink,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
-        ),
-        if (raffles.isEmpty)
-          _buildEmptyRaffles(context)
-        else
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: raffles.length,
-            itemBuilder: (context, index) {
-              final raffle = raffles[index];
-              return _RaffleCard(
-                raffle: raffle,
-                onTap: () => context.push('/admin/raffles/${raffle.id}'),
-              ).animate().fadeIn(
-                    delay: Duration(milliseconds: 50 * index + 400),
-                    duration: const Duration(milliseconds: 300),
-                  );
-            },
-          ),
-      ],
+          const SizedBox(height: 16),
+          if (raffles.isEmpty)
+            _buildEmptyRaffles(context)
+          else
+            Column(
+              children: raffles.asMap().entries.map((entry) {
+                final index = entry.key;
+                final raffle = entry.value;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _RaffleCard(
+                    raffle: raffle,
+                    onTap: () => context.push('/admin/raffles/${raffle.id}'),
+                  ).animate()
+                      .fadeIn(delay: (50 * index).ms, duration: 300.ms)
+                      .slideX(begin: 0.05, end: 0, delay: (50 * index).ms, duration: 300.ms),
+                );
+              }).toList(),
+            ),
+        ],
+      ),
     );
   }
 
   Widget _buildEmptyRaffles(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.all(16),
+      width: double.infinity,
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
+        color: _cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[300]!),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+          width: 1,
+        ),
       ),
       child: Column(
         children: [
-          Icon(
-            Icons.card_giftcard_outlined,
-            size: 48,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Nenhum sorteio',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 14,
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [_primaryPink.withOpacity(0.2), _primaryPink.withOpacity(0.1)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: _primaryPink.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: const Icon(
+              Icons.card_giftcard_outlined,
+              size: 36,
+              color: _primaryPink,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Crie sorteios para premiar os participantes do evento',
+          const SizedBox(height: 16),
+          const Text(
+            'Nenhum sorteio',
             style: TextStyle(
-              color: Colors.grey[500],
-              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              fontSize: 15,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Crie sorteios para premiar os participantes',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.5),
+              fontSize: 13,
             ),
             textAlign: TextAlign.center,
           ),
@@ -472,37 +778,77 @@ class EventDetailScreen extends ConsumerWidget {
   }
 
   Widget _buildError(BuildContext context, WidgetRef ref, String error) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
+    return Container(
+      color: _darkBg,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: _errorRed.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _errorRed.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: _errorRed,
+                ),
               ),
-              child: const Icon(
-                Icons.error_outline,
-                size: 64,
-                color: AppColors.error,
+              const SizedBox(height: 24),
+              Text(
+                error,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                ),
+                textAlign: TextAlign.center,
               ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              error,
-              style: Theme.of(context).textTheme.titleMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => ref.read(eventDetailProvider(eventId).notifier).refresh(),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Tentar novamente'),
-            ),
-          ],
+              const SizedBox(height: 24),
+              GestureDetector(
+                onTap: () => ref.read(eventDetailProvider(eventId).notifier).refresh(),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [_primaryPurple, _primaryPink],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _primaryPurple.withOpacity(0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.refresh, color: Colors.white, size: 18),
+                      SizedBox(width: 8),
+                      Text(
+                        'Tentar novamente',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -549,8 +895,8 @@ class EventDetailScreen extends ConsumerWidget {
 
     if (confirmed && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
+        SnackBar(
+          content: const Row(
             children: [
               SizedBox(
                 width: 20,
@@ -564,7 +910,8 @@ class EventDetailScreen extends ConsumerWidget {
               Text('Excluindo evento...'),
             ],
           ),
-          duration: Duration(seconds: 10),
+          backgroundColor: _cardBg,
+          duration: const Duration(seconds: 10),
         ),
       );
 
@@ -576,7 +923,7 @@ class EventDetailScreen extends ConsumerWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Evento excluído com sucesso'),
-              backgroundColor: AppColors.success,
+              backgroundColor: _successGreen,
             ),
           );
           context.pop();
@@ -587,7 +934,7 @@ class EventDetailScreen extends ConsumerWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Erro ao excluir evento: $e'),
-              backgroundColor: AppColors.error,
+              backgroundColor: _errorRed,
             ),
           );
         }
@@ -596,84 +943,76 @@ class EventDetailScreen extends ConsumerWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
-  final IconData icon;
+class _GlassStatCard extends StatelessWidget {
+  final String title;
   final String value;
-  final String label;
-  final Color color;
-  final bool horizontal;
+  final IconData icon;
+  final List<Color> gradient;
 
-  const _StatCard({
-    required this.icon,
+  const _GlassStatCard({
+    required this.title,
     required this.value,
-    required this.label,
-    required this.color,
-    this.horizontal = false,
+    required this.icon,
+    required this.gradient,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (horizontal) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(width: 12),
-            Text(
-              label,
-              style: TextStyle(
-                color: color.withOpacity(0.8),
-                fontSize: 14,
-              ),
-            ),
-            const Spacer(),
-            Text(
-              value,
-              style: TextStyle(
-                color: color,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: _cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.1),
+              width: 1,
             ),
           ),
-          Text(
-            label,
-            style: TextStyle(
-              color: color.withOpacity(0.8),
-              fontSize: 12,
-            ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: gradient,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 18, color: Colors.white),
+              ),
+              const SizedBox(height: 10),
+              ShaderMask(
+                shaderCallback: (bounds) => LinearGradient(
+                  colors: gradient,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ).createShader(bounds),
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.white.withOpacity(0.5),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -691,97 +1030,121 @@ class _TrackCard extends StatelessWidget {
   });
 
   Color get trackColor {
-    if (track.color == null) return AppColors.primary;
+    if (track.color == null) return _primaryPurple;
     try {
       return Color(int.parse(track.color!.replaceAll('#', '0xFF')));
     } catch (_) {
-      return AppColors.primary;
+      return _primaryPurple;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 4,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: trackColor,
-                  borderRadius: BorderRadius.circular(2),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: _cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            // Color indicator
+            Container(
+              width: 4,
+              height: 50,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [trackColor, trackColor.withOpacity(0.6)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                 ),
+                borderRadius: BorderRadius.circular(2),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      track.name,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+            ),
+            const SizedBox(width: 14),
+            // Track info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    track.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
-                    if (track.description != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        track.description!,
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 12,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (track.description != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      track.description!,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.5),
+                        fontSize: 12,
                       ),
-                    ],
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        _buildChip(
-                          Icons.mic_outlined,
-                          '${track.totalTalks} palestras',
-                          AppColors.info,
-                        ),
-                        const SizedBox(width: 8),
-                        _buildChip(
-                          Icons.people_outline,
-                          '${track.totalAttendances}',
-                          AppColors.success,
-                        ),
-                      ],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                ),
-              ),
-              PopupMenuButton(
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete_outline, color: AppColors.error),
-                        SizedBox(width: 8),
-                        Text('Excluir', style: TextStyle(color: AppColors.error)),
-                      ],
-                    ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      _buildChip(
+                        Icons.mic_outlined,
+                        '${track.totalTalks} palestras',
+                        _infoBlue,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildChip(
+                        Icons.people_outline,
+                        '${track.totalAttendances}',
+                        _successGreen,
+                      ),
+                    ],
                   ),
                 ],
-                onSelected: (value) {
-                  if (value == 'delete') {
-                    onDelete();
-                  }
-                },
               ),
-              const Icon(Icons.chevron_right, color: Colors.grey),
-            ],
-          ),
+            ),
+            PopupMenuButton(
+              icon: Icon(
+                Icons.more_vert,
+                color: Colors.white.withOpacity(0.5),
+                size: 20,
+              ),
+              color: _cardBg,
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete_outline, color: _errorRed, size: 18),
+                      const SizedBox(width: 8),
+                      Text('Excluir', style: TextStyle(color: _errorRed)),
+                    ],
+                  ),
+                ),
+              ],
+              onSelected: (value) {
+                if (value == 'delete') {
+                  onDelete();
+                }
+              },
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: Colors.white.withOpacity(0.3),
+              size: 20,
+            ),
+          ],
         ),
       ),
     );
@@ -791,8 +1154,12 @@ class _TrackCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: color.withOpacity(0.3),
+          width: 1,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -803,7 +1170,7 @@ class _TrackCard extends StatelessWidget {
             label,
             style: TextStyle(
               color: color,
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -822,119 +1189,157 @@ class _RaffleCard extends StatelessWidget {
     required this.onTap,
   });
 
-  Color get statusColor {
+  (Color, IconData, String) get statusInfo {
     switch (raffle.status) {
       case RaffleStatus.active:
-        return AppColors.success;
+        return (_successGreen, Icons.play_circle, 'Aberto');
       case RaffleStatus.closed:
-        return AppColors.warning;
+        return (_warningOrange, Icons.lock_clock, 'Fechado');
       case RaffleStatus.drawn:
-        return AppColors.info;
+        return (_infoBlue, Icons.emoji_events, 'Sorteado');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
+    final (statusColor, statusIcon, statusLabel) = statusInfo;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: _cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            // Raffle icon
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    statusColor.withOpacity(0.2),
+                    statusColor.withOpacity(0.1),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                child: Icon(
-                  Icons.card_giftcard,
-                  color: statusColor,
-                  size: 24,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: statusColor.withOpacity(0.3),
+                  width: 1,
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      raffle.prize,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+              child: Icon(
+                Icons.card_giftcard,
+                color: statusColor,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 14),
+            // Raffle info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    raffle.prize,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
-                    const SizedBox(height: 4),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      // Status badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: statusColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: statusColor.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(statusIcon, size: 12, color: statusColor),
+                            const SizedBox(width: 4),
+                            Text(
+                              statusLabel,
+                              style: TextStyle(
+                                color: statusColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Participants
+                      Icon(
+                        Icons.people_outline,
+                        size: 13,
+                        color: Colors.white.withOpacity(0.4),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${raffle.totalParticipants}',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.4),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Winner
+                  if (raffle.winner != null) ...[
+                    const SizedBox(height: 6),
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: statusColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            raffle.status.displayName,
-                            style: TextStyle(
-                              color: statusColor,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          Icons.people_outline,
-                          size: 14,
-                          color: Colors.grey[600],
+                        const Icon(
+                          Icons.emoji_events,
+                          size: 13,
+                          color: _warningOrange,
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          '${raffle.totalParticipants}',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
+                        Expanded(
+                          child: Text(
+                            raffle.winner!.name,
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.6),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
-                    if (raffle.winner != null) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.emoji_events,
-                            size: 14,
-                            color: AppColors.warning,
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              raffle.winner!.name,
-                              style: TextStyle(
-                                color: Colors.grey[700],
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
                   ],
-                ),
+                ],
               ),
-              const Icon(Icons.chevron_right, color: Colors.grey),
-            ],
-          ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: Colors.white.withOpacity(0.3),
+              size: 20,
+            ),
+          ],
         ),
       ),
     );

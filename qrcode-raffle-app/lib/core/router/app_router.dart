@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../presentation/screens/splash/splash_screen.dart';
 import '../../presentation/screens/auth/login_screen.dart';
 import '../../presentation/screens/home/home_screen.dart';
+import '../../presentation/screens/landing/events_carousel_screen.dart';
 import '../../presentation/screens/participant/qr_scanner_screen.dart';
 import '../../presentation/screens/participant/register_screen.dart';
 import '../../presentation/screens/participant/confirmation_screen.dart';
@@ -94,10 +95,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const LoginScreen(),
       ),
 
-      // Home (Tab Container)
+      // Home (Carousel Landing)
       GoRoute(
         path: '/home',
         name: 'home',
+        builder: (context, state) => const EventsCarouselScreen(),
+      ),
+
+      // Dashboard (Old Home with tabs)
+      GoRoute(
+        path: '/dashboard',
+        name: 'dashboard',
         builder: (context, state) => const HomeScreen(),
       ),
 

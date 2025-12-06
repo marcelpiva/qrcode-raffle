@@ -4,7 +4,14 @@ Aplicativo Flutter para sistema de sorteios com QR Code para eventos.
 
 ## Versao
 
-**v2.0.0** - App completo com sistema de eventos, trilhas, palestras e sorteios.
+**v2.0.6** - Landing page com carrossel de eventos e timeline de programacao.
+
+### Changelog
+
+- v2.0.6 - Landing page, timeline "Programacao", fix iOS 18 beta
+- v2.0.5 - Flutter app completo com UX moderno
+- v2.0.4 - Mobile responsive raffle detail e QR code
+- v2.0.0 - App completo com sistema de eventos, trilhas, palestras e sorteios
 
 ## Funcionalidades
 

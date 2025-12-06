@@ -34,13 +34,8 @@ class _DisplayScreenState extends ConsumerState<DisplayScreen> {
     super.initState();
     _confettiController = ConfettiController(duration: const Duration(seconds: 10));
 
-    // Full screen immersive mode
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-      DeviceOrientation.portraitUp,
-    ]);
+    // Note: Removed SystemChrome calls as they cause freezing on iOS 18 beta
+    // Full screen immersive mode and orientation changes are disabled for stability
 
     // Start polling for updates
     _startPolling();
@@ -56,8 +51,7 @@ class _DisplayScreenState extends ConsumerState<DisplayScreen> {
   void dispose() {
     _pollTimer?.cancel();
     _confettiController.dispose();
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    // Note: Removed SystemChrome calls as they cause freezing on iOS 18 beta
     super.dispose();
   }
 

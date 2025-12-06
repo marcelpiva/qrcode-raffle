@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../data/models/participant_model.dart';
 import '../../providers/raffle_provider.dart';
@@ -18,6 +19,20 @@ import '../shared/confirmation_screen.dart';
 class RaffleDetailScreen extends ConsumerStatefulWidget {
   final String raffleId;
 
+  // NAVA SUMMIT Colors
+  static const Color primaryPurple = Color(0xFF9333EA);
+  static const Color primaryPink = Color(0xFFDB2777);
+  static const Color darkBg = Color(0xFF09090B);
+  static const Color cardBg = Color(0xFF18181B);
+  static const Color cardBorder = Color(0xFF27272A);
+  static const Color textPrimary = Color(0xFFFAFAFA);
+  static const Color textSecondary = Color(0xFFA1A1AA);
+  static const Color textTertiary = Color(0xFF71717A);
+  static const Color successGreen = Color(0xFF22C55E);
+  static const Color warningOrange = Color(0xFFF97316);
+  static const Color infoBlue = Color(0xFF3B82F6);
+  static const Color errorRed = Color(0xFFEF4444);
+
   const RaffleDetailScreen({
     super.key,
     required this.raffleId,
@@ -27,21 +42,30 @@ class RaffleDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<RaffleDetailScreen> createState() => _RaffleDetailScreenState();
 }
 
-class _RaffleDetailScreenState extends ConsumerState<RaffleDetailScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _RaffleDetailScreenState extends ConsumerState<RaffleDetailScreen> {
+  bool _showAllParticipants = false;
   String _searchQuery = '';
+  Timer? _refreshTimer;
+  static const _refreshInterval = Duration(seconds: 10);
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _startAutoRefresh();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _refreshTimer?.cancel();
     super.dispose();
+  }
+
+  void _startAutoRefresh() {
+    _refreshTimer = Timer.periodic(_refreshInterval, (_) {
+      if (mounted) {
+        ref.read(raffleDetailProvider(widget.raffleId).notifier).refresh();
+      }
+    });
   }
 
   String get _registrationUrl {
@@ -60,7 +84,7 @@ class _RaffleDetailScreenState extends ConsumerState<RaffleDetailScreen>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(next.actionError!),
-              backgroundColor: AppColors.error,
+              backgroundColor: RaffleDetailScreen.errorRed,
             ),
           );
         }
@@ -68,46 +92,205 @@ class _RaffleDetailScreenState extends ConsumerState<RaffleDetailScreen>
     );
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(state.raffle?.name ?? 'Detalhes do Sorteio'),
-        actions: [
-          if (state.raffle != null)
-            IconButton(
-              icon: const Icon(Icons.share),
-              onPressed: () => _shareRaffle(context),
-              tooltip: 'Compartilhar',
+      backgroundColor: RaffleDetailScreen.darkBg,
+      body: Stack(
+        children: [
+          _buildBackground(),
+          SafeArea(
+            child: CustomScrollView(
+              slivers: [
+                _buildAppBar(context, state),
+                SliverToBoxAdapter(
+                  child: _buildContent(context, state),
+                ),
+              ],
             ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () =>
-                ref.read(raffleDetailProvider(widget.raffleId).notifier).refresh(),
-            tooltip: 'Atualizar',
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(
-              icon: const Icon(Icons.info_outline),
-              text: 'Detalhes',
-            ),
-            Tab(
-              icon: const Icon(Icons.people_outline),
-              text: 'Participantes (${state.participants.length})',
-            ),
-          ],
-        ),
       ),
-      body: _buildBody(context, state),
       floatingActionButton: state.raffle != null
           ? _buildFAB(context, ref, state)
           : null,
     );
   }
 
-  Widget _buildBody(BuildContext context, RaffleDetailState state) {
+  Widget _buildBackground() {
+    return Stack(
+      children: [
+        Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF1A0A2E),
+                RaffleDetailScreen.darkBg,
+                Color(0xFF0A0A0A),
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          right: -100,
+          top: -100,
+          child: Container(
+            width: 300,
+            height: 300,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  RaffleDetailScreen.primaryPurple.withOpacity(0.3),
+                  RaffleDetailScreen.primaryPurple.withOpacity(0),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: -80,
+          bottom: 200,
+          child: Container(
+            width: 200,
+            height: 200,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  RaffleDetailScreen.primaryPink.withOpacity(0.2),
+                  RaffleDetailScreen.primaryPink.withOpacity(0),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAppBar(BuildContext context, RaffleDetailState state) {
+    return SliverAppBar(
+      expandedHeight: 140,
+      pinned: true,
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      leading: Container(
+        margin: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => context.pop(),
+        ),
+      ),
+      actions: [
+        if (state.raffle != null)
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.share, color: Colors.white),
+              onPressed: () => _shareRaffle(context),
+              tooltip: 'Compartilhar',
+            ),
+          ),
+        Container(
+          margin: const EdgeInsets.only(right: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: () =>
+                ref.read(raffleDetailProvider(widget.raffleId).notifier).refresh(),
+            tooltip: 'Atualizar',
+          ),
+        ),
+      ],
+      flexibleSpace: FlexibleSpaceBar(
+        background: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                RaffleDetailScreen.primaryPurple.withOpacity(0.8),
+                RaffleDetailScreen.primaryPink.withOpacity(0.6),
+              ],
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 50, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    state.raffle?.name ?? 'Detalhes do Sorteio',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  if (state.raffle != null)
+                    Row(
+                      children: [
+                        RaffleStatusBadge(status: state.raffle!.status),
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.people, color: Colors.white, size: 14),
+                              const SizedBox(width: 6),
+                              Text(
+                                '${state.raffle!.totalParticipants}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context, RaffleDetailState state) {
     if (state.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return SizedBox(
+        height: 400,
+        child: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(RaffleDetailScreen.primaryPurple),
+          ),
+        ),
+      );
     }
 
     if (state.error != null) {
@@ -115,186 +298,81 @@ class _RaffleDetailScreenState extends ConsumerState<RaffleDetailScreen>
     }
 
     if (state.raffle == null) {
-      return const Center(child: Text('Sorteio não encontrado'));
+      return _buildNotFound(context);
     }
 
-    return TabBarView(
-      controller: _tabController,
-      children: [
-        _buildDetailsTab(context, state),
-        _buildParticipantsTab(context, state),
-      ],
-    );
-  }
-
-  Widget _buildDetailsTab(BuildContext context, RaffleDetailState state) {
     final raffle = state.raffle!;
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
 
     return RefreshIndicator(
+      color: RaffleDetailScreen.primaryPurple,
+      backgroundColor: RaffleDetailScreen.cardBg,
       onRefresh: () =>
           ref.read(raffleDetailProvider(widget.raffleId).notifier).refresh(),
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
+      child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Status and QR Code Card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        RaffleStatusBadge(status: raffle.status),
-                        if (raffle.hasSchedule)
-                          _buildScheduleInfo(raffle, dateFormat),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    // QR Code
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.cardBackground(context),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border(context)),
-                      ),
-                      child: Column(
-                        children: [
-                          QrImageView(
-                            data: _registrationUrl,
-                            version: QrVersions.auto,
-                            size: 180,
-                            backgroundColor: Colors.white,
-                            eyeStyle: const QrEyeStyle(
-                              eyeShape: QrEyeShape.square,
-                              color: AppColors.primary,
-                            ),
-                            dataModuleStyle: const QrDataModuleStyle(
-                              dataModuleShape: QrDataModuleShape.square,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Escaneie para participar',
-                            style: TextStyle(
-                              color: AppColors.textSecondary(context),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    // Copy URL Button
-                    OutlinedButton.icon(
-                      onPressed: () => _copyUrl(context),
-                      icon: const Icon(Icons.copy, size: 18),
-                      label: const Text('Copiar link'),
-                    ),
-                  ],
-                ),
-              ),
-            ).animate().fadeIn(duration: 300.ms),
+            // QR Code Card or No QR Code Card
+            if (!raffle.isEventRaffle && !raffle.isTalkRaffle || raffle.allowLinkRegistration) ...[
+              _buildQRCodeCard(context, raffle).animate().fadeIn(duration: 300.ms),
+              const SizedBox(height: 16),
+            ] else ...[
+              _buildNoQRCodeCard(context, raffle).animate().fadeIn(duration: 300.ms),
+              const SizedBox(height: 16),
+            ],
 
-            const SizedBox(height: 16),
-
-            // Info Card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildInfoRow(
-                      context,
-                      Icons.emoji_events,
-                      'Prêmio',
-                      raffle.prize,
-                      AppColors.primary,
-                    ),
-                    const Divider(height: 24),
-                    _buildInfoRow(
-                      context,
-                      Icons.people,
-                      'Participantes',
-                      '${raffle.totalParticipants}',
-                      AppColors.info,
-                    ),
-                    const Divider(height: 24),
-                    _buildInfoRow(
-                      context,
-                      Icons.calendar_today,
-                      'Criado em',
-                      dateFormat.format(raffle.createdAt),
-                      AppColors.textSecondary(context),
-                    ),
-                    if (raffle.description != null &&
-                        raffle.description!.isNotEmpty) ...[
-                      const Divider(height: 24),
-                      _buildInfoRow(
-                        context,
-                        Icons.description,
-                        'Descrição',
-                        raffle.description!,
-                        AppColors.textSecondary(context),
-                      ),
-                    ],
-                    if (raffle.allowedDomain != null) ...[
-                      const Divider(height: 24),
-                      _buildInfoRow(
-                        context,
-                        Icons.email,
-                        'Domínio permitido',
-                        '@${raffle.allowedDomain}',
-                        AppColors.secondary,
-                      ),
-                    ],
-                    if (raffle.requireConfirmation) ...[
-                      const Divider(height: 24),
-                      _buildInfoRow(
-                        context,
-                        Icons.lock,
-                        'Confirmação',
-                        'Requer PIN de ${raffle.confirmationTimeoutMinutes ?? 5}min',
-                        AppColors.warning,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ).animate().fadeIn(delay: 100.ms, duration: 300.ms),
+            // Prize Card
+            _buildPrizeCard(raffle)
+                .animate()
+                .fadeIn(delay: 100.ms, duration: 300.ms),
 
             const SizedBox(height: 16),
 
             // Winner Card (if drawn)
-            if (raffle.isDrawn && raffle.winner != null)
+            if (raffle.isDrawn && raffle.winner != null) ...[
               _buildWinnerCard(raffle)
                   .animate()
-                  .fadeIn(delay: 200.ms, duration: 300.ms),
+                  .fadeIn(delay: 150.ms, duration: 300.ms),
+              const SizedBox(height: 16),
+            ],
 
             // Countdown Card (if scheduled)
-            if (raffle.hasSchedule && !raffle.isDrawn)
+            if (raffle.hasSchedule && !raffle.isDrawn) ...[
               _buildCountdownCard(raffle)
                   .animate()
-                  .fadeIn(delay: 200.ms, duration: 300.ms),
+                  .fadeIn(delay: 150.ms, duration: 300.ms),
+              const SizedBox(height: 16),
+            ],
+
+            // Info Card
+            _buildInfoCard(context, raffle, dateFormat)
+                .animate()
+                .fadeIn(delay: 200.ms, duration: 300.ms),
+
+            const SizedBox(height: 16),
 
             // Event/Talk Badge
-            if (raffle.isEventRaffle || raffle.isTalkRaffle)
+            if (raffle.isEventRaffle || raffle.isTalkRaffle) ...[
               _buildEventBadge(raffle)
                   .animate()
-                  .fadeIn(delay: 300.ms, duration: 300.ms),
+                  .fadeIn(delay: 250.ms, duration: 300.ms),
+              const SizedBox(height: 16),
+            ],
 
-            // Settings toggles (for event raffles or scheduled raffles)
-            if (raffle.isEventRaffle || raffle.hasSchedule)
+            // Settings toggles
+            if (raffle.isEventRaffle || raffle.hasSchedule) ...[
               _buildSettingsCard(raffle, state)
                   .animate()
-                  .fadeIn(delay: 400.ms, duration: 300.ms),
+                  .fadeIn(delay: 300.ms, duration: 300.ms),
+              const SizedBox(height: 16),
+            ],
+
+            // Participants Section
+            _buildParticipantsSection(context, state)
+                .animate()
+                .fadeIn(delay: 350.ms, duration: 300.ms),
 
             const SizedBox(height: 100), // Space for FAB
           ],
@@ -303,88 +381,313 @@ class _RaffleDetailScreenState extends ConsumerState<RaffleDetailScreen>
     );
   }
 
-  Widget _buildScheduleInfo(dynamic raffle, DateFormat dateFormat) {
-    if (raffle.hasNotStarted && raffle.startsAt != null) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: AppColors.info.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.schedule, color: AppColors.info, size: 14),
-            const SizedBox(width: 4),
-            Text(
-              'Abre: ${dateFormat.format(raffle.startsAt!)}',
-              style: const TextStyle(
-                color: AppColors.info,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
+  Widget _buildQRCodeCard(BuildContext context, dynamic raffle) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: RaffleDetailScreen.cardBg.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: RaffleDetailScreen.cardBorder),
+          ),
+          child: Column(
+            children: [
+              // QR Code
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: RaffleDetailScreen.primaryPurple.withOpacity(0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: QrImageView(
+                  data: _registrationUrl,
+                  version: QrVersions.auto,
+                  size: 160,
+                  backgroundColor: Colors.white,
+                  eyeStyle: const QrEyeStyle(
+                    eyeShape: QrEyeShape.square,
+                    color: Color(0xFF9333EA),
+                  ),
+                  dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleShape: QrDataModuleShape.square,
+                    color: Color(0xFF9333EA),
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
-      );
-    } else if (raffle.endsAt != null) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: AppColors.warning.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.schedule, color: AppColors.warning, size: 14),
-            const SizedBox(width: 4),
-            Text(
-              'Fecha: ${dateFormat.format(raffle.endsAt!)}',
-              style: const TextStyle(
-                color: AppColors.warning,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
+              const SizedBox(height: 16),
+              Text(
+                'Escaneie para participar',
+                style: TextStyle(
+                  color: RaffleDetailScreen.textSecondary,
+                  fontSize: 13,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              // Copy URL Button
+              Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [RaffleDetailScreen.primaryPurple, RaffleDetailScreen.primaryPink],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => _copyUrl(context),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.copy, size: 18, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text(
+                            'Copiar link',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      );
-    }
-    return const SizedBox.shrink();
+      ),
+    );
   }
 
-  Widget _buildInfoRow(BuildContext context, IconData icon, String label, String value, Color color) {
+  Widget _buildNoQRCodeCard(BuildContext context, dynamic raffle) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: RaffleDetailScreen.cardBg.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: RaffleDetailScreen.cardBorder),
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: RaffleDetailScreen.infoBlue.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Icon(
+                  Icons.link_off_rounded,
+                  size: 48,
+                  color: RaffleDetailScreen.infoBlue,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Inscricao via QR Code desabilitada',
+                style: TextStyle(
+                  color: RaffleDetailScreen.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                raffle.isEventRaffle
+                    ? 'Apenas participantes com presenca no evento podem participar.'
+                    : 'Apenas participantes com presenca na palestra podem participar.',
+                style: TextStyle(
+                  color: RaffleDetailScreen.textSecondary,
+                  fontSize: 13,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPrizeCard(dynamic raffle) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: RaffleDetailScreen.cardBg.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: RaffleDetailScreen.cardBorder),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: RaffleDetailScreen.warningOrange.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.emoji_events_rounded, color: RaffleDetailScreen.warningOrange, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Premio',
+                      style: TextStyle(
+                        color: RaffleDetailScreen.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      raffle.prize,
+                      style: const TextStyle(
+                        color: RaffleDetailScreen.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoCard(BuildContext context, dynamic raffle, DateFormat dateFormat) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: RaffleDetailScreen.cardBg.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: RaffleDetailScreen.cardBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildInfoRow(
+                Icons.calendar_today_rounded,
+                'Criado em',
+                dateFormat.format(raffle.createdAt),
+                RaffleDetailScreen.textSecondary,
+              ),
+              if (raffle.description != null && raffle.description!.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _buildInfoRow(
+                  Icons.description_rounded,
+                  'Descricao',
+                  raffle.description!,
+                  RaffleDetailScreen.infoBlue,
+                ),
+              ],
+              if (raffle.allowedDomain != null) ...[
+                const SizedBox(height: 16),
+                _buildInfoRow(
+                  Icons.email_rounded,
+                  'Dominio permitido',
+                  '@${raffle.allowedDomain}',
+                  RaffleDetailScreen.primaryPink,
+                ),
+              ],
+              if (raffle.requireConfirmation) ...[
+                const SizedBox(height: 16),
+                _buildInfoRow(
+                  Icons.lock_rounded,
+                  'Confirmacao',
+                  'Requer PIN de ${raffle.confirmationTimeoutMinutes ?? 5}min',
+                  RaffleDetailScreen.warningOrange,
+                ),
+              ],
+              if (raffle.hasSchedule) ...[
+                if (raffle.startsAt != null) ...[
+                  const SizedBox(height: 16),
+                  _buildInfoRow(
+                    Icons.schedule_rounded,
+                    'Abre em',
+                    dateFormat.format(raffle.startsAt!),
+                    RaffleDetailScreen.infoBlue,
+                  ),
+                ],
+                if (raffle.endsAt != null) ...[
+                  const SizedBox(height: 16),
+                  _buildInfoRow(
+                    Icons.timer_off_rounded,
+                    'Fecha em',
+                    dateFormat.format(raffle.endsAt!),
+                    RaffleDetailScreen.warningOrange,
+                  ),
+                ],
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value, Color color) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
+            color: color.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, color: color, size: 20),
+          child: Icon(icon, color: color, size: 18),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 label,
-                style: TextStyle(
-                  color: AppColors.textSecondary(context),
+                style: const TextStyle(
+                  color: RaffleDetailScreen.textSecondary,
                   fontSize: 12,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 4),
               Text(
                 value,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15,
-                  color: AppColors.textPrimary(context),
+                style: const TextStyle(
+                  color: RaffleDetailScreen.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
@@ -395,62 +698,101 @@ class _RaffleDetailScreenState extends ConsumerState<RaffleDetailScreen>
   }
 
   Widget _buildWinnerCard(dynamic raffle) {
-    return SizedBox(
-      width: double.infinity,
-      child: Card(
-        color: AppColors.success.withOpacity(0.05),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                RaffleDetailScreen.successGreen.withOpacity(0.2),
+                RaffleDetailScreen.successGreen.withOpacity(0.1),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: RaffleDetailScreen.successGreen.withOpacity(0.3)),
+          ),
           child: Column(
             children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.success.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.emoji_events,
-                color: AppColors.success,
-                size: 40,
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Ganhador',
-              style: TextStyle(
-                color: AppColors.success,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              raffle.winner!.name,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppColors.success,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              raffle.winner!.email,
-              style: TextStyle(
-                color: AppColors.textSecondary(context),
-                fontSize: 14,
-              ),
-            ),
-            if (raffle.closedAt != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Sorteado em ${DateFormat('dd/MM/yyyy HH:mm').format(raffle.closedAt!.toLocal())}',
-                style: TextStyle(
-                  color: AppColors.textTertiary(context),
-                  fontSize: 12,
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      RaffleDetailScreen.successGreen,
+                      RaffleDetailScreen.successGreen.withOpacity(0.8),
+                    ],
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: RaffleDetailScreen.successGreen.withOpacity(0.4),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.emoji_events_rounded,
+                  color: Colors.white,
+                  size: 36,
                 ),
               ),
-            ],
+              const SizedBox(height: 16),
+              ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [RaffleDetailScreen.successGreen, Color(0xFF4ADE80)],
+                ).createShader(bounds),
+                child: const Text(
+                  'GANHADOR',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 3,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                raffle.winner!.name,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: RaffleDetailScreen.textPrimary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                raffle.winner!.email,
+                style: const TextStyle(
+                  color: RaffleDetailScreen.textSecondary,
+                  fontSize: 14,
+                ),
+              ),
+              if (raffle.closedAt != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: RaffleDetailScreen.cardBg.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'Sorteado em ${DateFormat('dd/MM/yyyy HH:mm').format(raffle.closedAt!.toLocal())}',
+                    style: const TextStyle(
+                      color: RaffleDetailScreen.textTertiary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -472,65 +814,86 @@ class _RaffleDetailScreenState extends ConsumerState<RaffleDetailScreen>
       return const SizedBox.shrink();
     }
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: CountdownTimerWidget(
-          targetTime: targetTime,
-          mode: mode,
-          onExpired: () {
-            ref
-                .read(raffleDetailProvider(widget.raffleId).notifier)
-                .refresh();
-          },
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: RaffleDetailScreen.cardBg.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: RaffleDetailScreen.cardBorder),
+          ),
+          child: CountdownTimerWidget(
+            targetTime: targetTime,
+            mode: mode,
+            onExpired: () {
+              ref.read(raffleDetailProvider(widget.raffleId).notifier).refresh();
+            },
+          ),
         ),
       ),
     );
   }
 
   Widget _buildEventBadge(dynamic raffle) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.secondary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                raffle.isEventRaffle ? Icons.event : Icons.mic,
-                color: AppColors.secondary,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    raffle.isEventRaffle ? 'Sorteio de Evento' : 'Sorteio de Palestra',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                    ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: RaffleDetailScreen.cardBg.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: RaffleDetailScreen.cardBorder),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      RaffleDetailScreen.primaryPurple.withOpacity(0.2),
+                      RaffleDetailScreen.primaryPink.withOpacity(0.2),
+                    ],
                   ),
-                  if (raffle.minDurationMinutes != null ||
-                      raffle.minTalksCount != null)
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  raffle.isEventRaffle ? Icons.event_rounded : Icons.mic_rounded,
+                  color: RaffleDetailScreen.primaryPurple,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      _getEligibilityText(raffle),
-                      style: TextStyle(
-                        color: AppColors.textSecondary(context),
-                        fontSize: 12,
+                      raffle.isEventRaffle ? 'Sorteio de Evento' : 'Sorteio de Palestra',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                        color: RaffleDetailScreen.textPrimary,
                       ),
                     ),
-                ],
+                    if (raffle.minDurationMinutes != null || raffle.minTalksCount != null)
+                      Text(
+                        _getEligibilityText(raffle),
+                        style: const TextStyle(
+                          color: RaffleDetailScreen.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -539,259 +902,445 @@ class _RaffleDetailScreenState extends ConsumerState<RaffleDetailScreen>
   String _getEligibilityText(dynamic raffle) {
     final parts = <String>[];
     if (raffle.minDurationMinutes != null) {
-      parts.add('Mín. ${raffle.minDurationMinutes} min');
+      parts.add('Min. ${raffle.minDurationMinutes} min');
     }
     if (raffle.minTalksCount != null) {
-      parts.add('Mín. ${raffle.minTalksCount} palestras');
+      parts.add('Min. ${raffle.minTalksCount} palestras');
     }
     return parts.join(' • ');
   }
 
   Widget _buildSettingsCard(dynamic raffle, RaffleDetailState state) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant(context),
-                    borderRadius: BorderRadius.circular(8),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: RaffleDetailScreen.cardBg.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: RaffleDetailScreen.cardBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: RaffleDetailScreen.textTertiary.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.settings_rounded, color: RaffleDetailScreen.textSecondary, size: 20),
                   ),
-                  child: Icon(Icons.settings, color: AppColors.textSecondary(context), size: 20),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Configurações',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15,
-                    color: AppColors.textPrimary(context),
+                  const SizedBox(width: 14),
+                  const Text(
+                    'Configuracoes',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                      color: RaffleDetailScreen.textPrimary,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // Allow link registration toggle (for event raffles)
-            if (raffle.isEventRaffle) ...[
-              SwitchListTile(
-                value: raffle.allowLinkRegistration,
-                onChanged: state.isActionLoading
-                    ? null
-                    : (value) {
-                        ref
-                            .read(raffleDetailProvider(widget.raffleId).notifier)
-                            .toggleLinkRegistration(value);
-                      },
-                title: const Text('Permitir inscrições por link'),
-                subtitle: Text(
-                  raffle.allowLinkRegistration
+                ],
+              ),
+              const SizedBox(height: 20),
+              // Allow link registration toggle (for event raffles)
+              if (raffle.isEventRaffle) ...[
+                _buildToggleRow(
+                  icon: raffle.allowLinkRegistration ? Icons.link_rounded : Icons.link_off_rounded,
+                  title: 'Permitir inscricoes por link',
+                  subtitle: raffle.allowLinkRegistration
                       ? 'Participantes podem se inscrever via QR code'
                       : 'Apenas participantes do evento podem participar',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary(context)),
+                  value: raffle.allowLinkRegistration,
+                  color: raffle.allowLinkRegistration ? RaffleDetailScreen.successGreen : RaffleDetailScreen.textTertiary,
+                  onChanged: state.isActionLoading
+                      ? null
+                      : (value) {
+                          ref
+                              .read(raffleDetailProvider(widget.raffleId).notifier)
+                              .toggleLinkRegistration(value);
+                        },
                 ),
-                secondary: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: raffle.allowLinkRegistration
-                        ? AppColors.success.withOpacity(0.1)
-                        : AppColors.surfaceVariant(context),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    raffle.allowLinkRegistration ? Icons.link : Icons.link_off,
-                    color: raffle.allowLinkRegistration
-                        ? AppColors.success
-                        : AppColors.textTertiary(context),
-                    size: 20,
-                  ),
+                if (raffle.hasSchedule) ...[
+                  const SizedBox(height: 16),
+                  Container(height: 1, color: RaffleDetailScreen.cardBorder),
+                  const SizedBox(height: 16),
+                ],
+              ],
+              // Auto-draw toggle (for scheduled raffles)
+              if (raffle.hasSchedule && raffle.endsAt != null)
+                _buildToggleRow(
+                  icon: raffle.autoDrawOnEnd ? Icons.casino_rounded : Icons.casino_outlined,
+                  title: 'Sortear automaticamente',
+                  subtitle: raffle.autoDrawOnEnd
+                      ? 'O sorteio sera realizado quando o prazo acabar'
+                      : 'Voce precisara iniciar o sorteio manualmente',
+                  value: raffle.autoDrawOnEnd,
+                  color: raffle.autoDrawOnEnd ? RaffleDetailScreen.primaryPurple : RaffleDetailScreen.textTertiary,
+                  onChanged: state.isActionLoading
+                      ? null
+                      : (value) {
+                          ref
+                              .read(raffleDetailProvider(widget.raffleId).notifier)
+                              .toggleAutoDrawOnEnd(value);
+                        },
                 ),
-                contentPadding: EdgeInsets.zero,
-              ),
-              if (raffle.hasSchedule) const Divider(height: 24),
             ],
-            // Auto-draw toggle (for scheduled raffles)
-            if (raffle.hasSchedule && raffle.endsAt != null)
-              SwitchListTile(
-                value: raffle.autoDrawOnEnd,
-                onChanged: state.isActionLoading
-                    ? null
-                    : (value) {
-                        ref
-                            .read(raffleDetailProvider(widget.raffleId).notifier)
-                            .toggleAutoDrawOnEnd(value);
-                      },
-                title: const Text('Sortear automaticamente'),
-                subtitle: Text(
-                  raffle.autoDrawOnEnd
-                      ? 'O sorteio será realizado quando o prazo acabar'
-                      : 'Você precisará iniciar o sorteio manualmente',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary(context)),
-                ),
-                secondary: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: raffle.autoDrawOnEnd
-                        ? AppColors.primary.withOpacity(0.1)
-                        : AppColors.surfaceVariant(context),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    raffle.autoDrawOnEnd ? Icons.casino : Icons.casino_outlined,
-                    color: raffle.autoDrawOnEnd
-                        ? AppColors.primary
-                        : AppColors.textTertiary(context),
-                    size: 20,
-                  ),
-                ),
-                contentPadding: EdgeInsets.zero,
-              ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildParticipantsTab(BuildContext context, RaffleDetailState state) {
-    final filteredParticipants = state.participants.where((p) {
-      if (_searchQuery.isEmpty) return true;
-      final query = _searchQuery.toLowerCase();
-      return p.name.toLowerCase().contains(query) ||
-          p.email.toLowerCase().contains(query);
-    }).toList();
-
-    return Column(
+  Widget _buildToggleRow({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required Color color,
+    required ValueChanged<bool>? onChanged,
+  }) {
+    return Row(
       children: [
-        // Search bar
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: TextField(
-            onChanged: (value) => setState(() => _searchQuery = value),
-            decoration: InputDecoration(
-              hintText: 'Buscar participante...',
-              prefixIcon: const Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-            ),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(10),
           ),
+          child: Icon(icon, color: color, size: 20),
         ),
-        // Participants count
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${filteredParticipants.length} participante${filteredParticipants.length != 1 ? 's' : ''}',
-                style: TextStyle(
-                  color: AppColors.textSecondary(context),
+                title,
+                style: const TextStyle(
                   fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                  color: RaffleDetailScreen.textPrimary,
                 ),
               ),
-              TextButton.icon(
-                onPressed: () => _exportParticipants(context),
-                icon: const Icon(Icons.download, size: 18),
-                label: const Text('Exportar'),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: RaffleDetailScreen.textSecondary,
+                  fontSize: 12,
+                ),
               ),
             ],
           ),
         ),
-        // List
-        Expanded(
-          child: filteredParticipants.isEmpty
-              ? _buildEmptyParticipants()
-              : ListView.builder(
-                  padding: const EdgeInsets.only(bottom: 100),
-                  itemCount: filteredParticipants.length,
-                  itemBuilder: (context, index) {
-                    final participant = filteredParticipants[index];
-                    final isWinner = state.raffle?.winner?.id == participant.id;
-                    return _ParticipantTile(
-                      participant: participant,
-                      isWinner: isWinner,
-                      index: index,
-                    );
-                  },
-                ),
+        Switch(
+          value: value,
+          onChanged: onChanged,
+          activeColor: RaffleDetailScreen.primaryPurple,
         ),
       ],
     );
   }
 
-  Widget _buildEmptyParticipants() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceVariant(context),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(
-              Icons.people_outline,
-              size: 64,
-              color: AppColors.textTertiary(context),
-            ),
+  Widget _buildParticipantsSection(BuildContext context, RaffleDetailState state) {
+    final participants = state.participants;
+    final filteredParticipants = _searchQuery.isEmpty
+        ? participants
+        : participants.where((p) {
+            final query = _searchQuery.toLowerCase();
+            return p.name.toLowerCase().contains(query) ||
+                p.email.toLowerCase().contains(query);
+          }).toList();
+
+    final displayedParticipants = _showAllParticipants
+        ? filteredParticipants
+        : filteredParticipants.take(5).toList();
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: RaffleDetailScreen.cardBg.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: RaffleDetailScreen.cardBorder),
           ),
-          const SizedBox(height: 16),
-          Text(
-            _searchQuery.isEmpty
-                ? 'Nenhum participante ainda'
-                : 'Nenhum resultado encontrado',
-            style: TextStyle(
-              color: AppColors.textSecondary(context),
-              fontSize: 16,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: RaffleDetailScreen.primaryPurple.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.people_rounded, color: RaffleDetailScreen.primaryPurple, size: 20),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Participantes',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                            color: RaffleDetailScreen.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          '${participants.length} inscrito${participants.length != 1 ? 's' : ''}',
+                          style: const TextStyle(
+                            color: RaffleDetailScreen.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (participants.isNotEmpty)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: RaffleDetailScreen.cardBorder,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => _exportParticipants(context),
+                          borderRadius: BorderRadius.circular(10),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Icon(Icons.download, size: 16, color: RaffleDetailScreen.textSecondary),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Exportar',
+                                  style: TextStyle(
+                                    color: RaffleDetailScreen.textSecondary,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+
+              // Search bar (if more than 5 participants)
+              if (participants.length > 5) ...[
+                const SizedBox(height: 16),
+                Container(
+                  decoration: BoxDecoration(
+                    color: RaffleDetailScreen.darkBg,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: TextField(
+                    onChanged: (value) => setState(() => _searchQuery = value),
+                    style: const TextStyle(color: RaffleDetailScreen.textPrimary, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Buscar participante...',
+                      hintStyle: const TextStyle(color: RaffleDetailScreen.textTertiary, fontSize: 14),
+                      prefixIcon: const Icon(Icons.search, color: RaffleDetailScreen.textTertiary, size: 20),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 16),
+
+              // Participants list
+              if (participants.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.people_outline_rounded,
+                          size: 40,
+                          color: RaffleDetailScreen.textTertiary,
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Nenhum participante ainda',
+                          style: TextStyle(
+                            color: RaffleDetailScreen.textSecondary,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else if (filteredParticipants.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: Text(
+                      'Nenhum resultado para "$_searchQuery"',
+                      style: const TextStyle(
+                        color: RaffleDetailScreen.textSecondary,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                )
+              else ...[
+                ...displayedParticipants.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final participant = entry.value;
+                  final isWinner = state.raffle?.winner?.id == participant.id;
+                  return _ParticipantTile(
+                    participant: participant,
+                    isWinner: isWinner,
+                    index: index,
+                  );
+                }),
+
+                // Show more/less button
+                if (filteredParticipants.length > 5) ...[
+                  const SizedBox(height: 12),
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () => setState(() => _showAllParticipants = !_showAllParticipants),
+                      icon: Icon(
+                        _showAllParticipants ? Icons.expand_less : Icons.expand_more,
+                        color: RaffleDetailScreen.primaryPurple,
+                      ),
+                      label: Text(
+                        _showAllParticipants
+                            ? 'Mostrar menos'
+                            : 'Ver todos (${filteredParticipants.length})',
+                        style: const TextStyle(
+                          color: RaffleDetailScreen.primaryPurple,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ],
           ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotFound(BuildContext context) {
+    return SizedBox(
+      height: 400,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                color: RaffleDetailScreen.cardBg,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: const Icon(
+                Icons.search_off_rounded,
+                size: 56,
+                color: RaffleDetailScreen.textTertiary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Sorteio nao encontrado',
+              style: TextStyle(
+                color: RaffleDetailScreen.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 24),
+            TextButton.icon(
+              onPressed: () => context.pop(),
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Voltar'),
+              style: TextButton.styleFrom(
+                foregroundColor: RaffleDetailScreen.primaryPurple,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildError(BuildContext context, String error) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
+    return SizedBox(
+      height: 400,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(28),
+                decoration: BoxDecoration(
+                  color: RaffleDetailScreen.errorRed.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: const Icon(
+                  Icons.error_outline_rounded,
+                  size: 56,
+                  color: RaffleDetailScreen.errorRed,
+                ),
               ),
-              child: const Icon(
-                Icons.error_outline,
-                size: 64,
-                color: AppColors.error,
+              const SizedBox(height: 24),
+              Text(
+                error,
+                style: const TextStyle(
+                  color: RaffleDetailScreen.textPrimary,
+                  fontSize: 16,
+                ),
+                textAlign: TextAlign.center,
               ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              error,
-              style: Theme.of(context).textTheme.titleMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () =>
-                  ref.read(raffleDetailProvider(widget.raffleId).notifier).loadRaffle(),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Tentar novamente'),
-            ),
-          ],
+              const SizedBox(height: 24),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [RaffleDetailScreen.primaryPurple, RaffleDetailScreen.primaryPink],
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: ElevatedButton.icon(
+                  onPressed: () =>
+                      ref.read(raffleDetailProvider(widget.raffleId).notifier).loadRaffle(),
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Tentar novamente'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    shadowColor: Colors.transparent,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -801,41 +1350,51 @@ class _RaffleDetailScreenState extends ConsumerState<RaffleDetailScreen>
     final raffle = state.raffle!;
 
     if (state.isActionLoading) {
-      return FloatingActionButton.extended(
-        onPressed: null,
-        icon: const SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: Colors.white,
-          ),
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        decoration: BoxDecoration(
+          color: RaffleDetailScreen.cardBg,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: RaffleDetailScreen.cardBorder),
         ),
-        label: const Text('Processando...'),
-        backgroundColor: Colors.grey,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: RaffleDetailScreen.textSecondary,
+              ),
+            ),
+            SizedBox(width: 12),
+            Text(
+              'Processando...',
+              style: TextStyle(color: RaffleDetailScreen.textSecondary),
+            ),
+          ],
+        ),
       );
     }
 
     // Active raffle - can close registrations
     if (raffle.isActive) {
-      return FloatingActionButton.extended(
+      return _buildGradientFAB(
         onPressed: () => _showCloseDialog(context, ref),
-        icon: const Icon(Icons.lock),
-        label: const Text('Fechar Inscrições'),
-        backgroundColor: AppColors.warning,
-        foregroundColor: Colors.white,
+        icon: Icons.lock_rounded,
+        label: 'Fechar Inscricoes',
+        colors: [RaffleDetailScreen.warningOrange, const Color(0xFFEA580C)],
       );
     }
 
     // Closed raffle with winner (inconsistent state) - show reopen option
     if (raffle.isClosed && raffle.winner != null) {
-      return FloatingActionButton.extended(
-        heroTag: 'reopen_with_winner',
+      return _buildGradientFAB(
         onPressed: () => _showReopenDialog(context, ref),
-        icon: const Icon(Icons.refresh),
-        label: const Text('Resortear'),
-        backgroundColor: AppColors.secondary,
-        foregroundColor: Colors.white,
+        icon: Icons.refresh_rounded,
+        label: 'Resortear',
+        colors: [RaffleDetailScreen.primaryPurple, RaffleDetailScreen.primaryPink],
       );
     }
 
@@ -845,29 +1404,34 @@ class _RaffleDetailScreenState extends ConsumerState<RaffleDetailScreen>
         mainAxisSize: MainAxisSize.min,
         children: [
           // Reopen registrations button (secondary)
-          FloatingActionButton.small(
-            heroTag: 'reopen_registrations',
-            onPressed: () => _showReopenRegistrationsDialog(context, ref),
-            backgroundColor: AppColors.info,
-            foregroundColor: Colors.white,
-            child: const Icon(Icons.lock_open),
+          Container(
+            decoration: BoxDecoration(
+              color: RaffleDetailScreen.cardBg,
+              shape: BoxShape.circle,
+              border: Border.all(color: RaffleDetailScreen.infoBlue.withOpacity(0.3)),
+            ),
+            child: IconButton(
+              onPressed: () => _showReopenRegistrationsDialog(context, ref),
+              icon: const Icon(Icons.lock_open_rounded),
+              color: RaffleDetailScreen.infoBlue,
+              tooltip: 'Reabrir inscricoes',
+            ),
           ),
           const SizedBox(height: 12),
           // Draw button (primary)
-          FloatingActionButton.extended(
-            heroTag: 'draw',
+          _buildGradientFAB(
             onPressed: raffle.totalParticipants > 0
                 ? () {
-                    // Invalidate draw provider to force fresh data load
                     ref.invalidate(drawProvider(widget.raffleId));
                     context.push('/admin/raffles/${widget.raffleId}/draw');
                   }
                 : null,
-            icon: const Icon(Icons.casino),
-            label: const Text('Sortear'),
-            backgroundColor:
-                raffle.totalParticipants > 0 ? AppColors.primary : Colors.grey,
-            foregroundColor: Colors.white,
+            icon: Icons.casino_rounded,
+            label: 'Sortear',
+            colors: raffle.totalParticipants > 0
+                ? [RaffleDetailScreen.primaryPurple, RaffleDetailScreen.primaryPink]
+                : [RaffleDetailScreen.cardBg, RaffleDetailScreen.cardBg],
+            disabled: raffle.totalParticipants == 0,
           ),
         ],
       );
@@ -875,25 +1439,73 @@ class _RaffleDetailScreenState extends ConsumerState<RaffleDetailScreen>
 
     // Drawn raffle - show reopen option
     if (raffle.isDrawn) {
-      return FloatingActionButton.extended(
+      return _buildGradientFAB(
         onPressed: () => _showReopenDialog(context, ref),
-        icon: const Icon(Icons.refresh),
-        label: const Text('Reabrir Sorteio'),
-        backgroundColor: AppColors.secondary,
-        foregroundColor: Colors.white,
+        icon: Icons.refresh_rounded,
+        label: 'Reabrir Sorteio',
+        colors: [RaffleDetailScreen.primaryPurple, RaffleDetailScreen.primaryPink],
       );
     }
 
     return null;
   }
 
+  Widget _buildGradientFAB({
+    required VoidCallback? onPressed,
+    required IconData icon,
+    required String label,
+    required List<Color> colors,
+    bool disabled = false,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: colors),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: disabled
+            ? null
+            : [
+                BoxShadow(
+                  color: colors.first.withOpacity(0.4),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(28),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: disabled ? RaffleDetailScreen.textTertiary : Colors.white),
+                const SizedBox(width: 10),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: disabled ? RaffleDetailScreen.textTertiary : Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _showCloseDialog(BuildContext context, WidgetRef ref) async {
     final confirmed = await ConfirmationScreen.show(
       context: context,
-      title: 'Fechar Inscrições?',
-      message: 'Ao fechar as inscrições, novos participantes não poderão se inscrever.',
-      subtitle: 'Você poderá reabrir as inscrições depois, se necessário.',
-      confirmText: 'Fechar Inscrições',
+      title: 'Fechar Inscricoes?',
+      message: 'Ao fechar as inscricoes, novos participantes nao poderao se inscrever.',
+      subtitle: 'Voce podera reabrir as inscricoes depois, se necessario.',
+      confirmText: 'Fechar Inscricoes',
       cancelText: 'Cancelar',
       type: ConfirmationType.close,
     );
@@ -907,8 +1519,8 @@ class _RaffleDetailScreenState extends ConsumerState<RaffleDetailScreen>
     final confirmed = await ConfirmationScreen.show(
       context: context,
       title: 'Reabrir Sorteio?',
-      message: 'Ao reabrir o sorteio, o ganhador atual será removido e você poderá sortear novamente.',
-      subtitle: 'As inscrições permanecerão fechadas.',
+      message: 'Ao reabrir o sorteio, o ganhador atual sera removido e voce podera sortear novamente.',
+      subtitle: 'As inscricoes permanecerao fechadas.',
       confirmText: 'Reabrir Sorteio',
       cancelText: 'Cancelar',
       type: ConfirmationType.warning,
@@ -922,9 +1534,9 @@ class _RaffleDetailScreenState extends ConsumerState<RaffleDetailScreen>
   Future<void> _showReopenRegistrationsDialog(BuildContext context, WidgetRef ref) async {
     final confirmed = await ConfirmationScreen.show(
       context: context,
-      title: 'Reabrir Inscrições?',
-      message: 'Ao reabrir as inscrições, novos participantes poderão se inscrever no sorteio novamente.',
-      confirmText: 'Reabrir Inscrições',
+      title: 'Reabrir Inscricoes?',
+      message: 'Ao reabrir as inscricoes, novos participantes poderao se inscrever no sorteio novamente.',
+      confirmText: 'Reabrir Inscricoes',
       cancelText: 'Cancelar',
       type: ConfirmationType.info,
     );
@@ -937,9 +1549,11 @@ class _RaffleDetailScreenState extends ConsumerState<RaffleDetailScreen>
   void _copyUrl(BuildContext context) {
     Clipboard.setData(ClipboardData(text: _registrationUrl));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Link copiado!'),
-        duration: Duration(seconds: 2),
+      SnackBar(
+        content: const Text('Link copiado!'),
+        backgroundColor: RaffleDetailScreen.successGreen,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -951,17 +1565,19 @@ class _RaffleDetailScreenState extends ConsumerState<RaffleDetailScreen>
 
     Share.share(
       'Participe do sorteio "${raffle.name}"!\n'
-      'Prêmio: ${raffle.prize}\n\n'
+      'Premio: ${raffle.prize}\n\n'
       'Acesse: $_registrationUrl',
       subject: 'Sorteio: ${raffle.name}',
     );
   }
 
   void _exportParticipants(BuildContext context) {
-    // TODO: Implement CSV export
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Exportação será implementada em breve'),
+      SnackBar(
+        content: const Text('Exportacao sera implementada em breve'),
+        backgroundColor: RaffleDetailScreen.cardBg,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -982,82 +1598,108 @@ class _ParticipantTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('dd/MM HH:mm');
 
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: isWinner
-            ? AppColors.success.withOpacity(0.1)
-            : AppColors.primary.withOpacity(0.1),
-        child: isWinner
-            ? const Icon(Icons.emoji_events, color: AppColors.success)
-            : Text(
-                participant.name[0].toUpperCase(),
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-      ),
-      title: Row(
-        children: [
-          Expanded(
-            child: Text(
-              participant.name,
-              style: TextStyle(
-                fontWeight: isWinner ? FontWeight.bold : FontWeight.w500,
-                color: isWinner ? AppColors.success : AppColors.textPrimary(context),
-              ),
-            ),
-          ),
-          if (isWinner)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.success.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                'Ganhador',
-                style: TextStyle(
-                  color: AppColors.success,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-        ],
-      ),
-      subtitle: Text(
-        participant.email,
-        style: TextStyle(
-          color: AppColors.textSecondary(context),
-          fontSize: 13,
+    final avatarColors = [
+      RaffleDetailScreen.primaryPurple,
+      RaffleDetailScreen.primaryPink,
+      RaffleDetailScreen.infoBlue,
+      RaffleDetailScreen.successGreen,
+      RaffleDetailScreen.warningOrange,
+    ];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: isWinner
+            ? RaffleDetailScreen.successGreen.withOpacity(0.1)
+            : RaffleDetailScreen.darkBg.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isWinner
+              ? RaffleDetailScreen.successGreen.withOpacity(0.3)
+              : RaffleDetailScreen.cardBorder.withOpacity(0.5),
         ),
       ),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text(
-            dateFormat.format(participant.createdAt),
-            style: TextStyle(
-              color: AppColors.textTertiary(context),
-              fontSize: 11,
-            ),
+      child: ListTile(
+        dense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            gradient: isWinner
+                ? const LinearGradient(
+                    colors: [RaffleDetailScreen.successGreen, Color(0xFF4ADE80)],
+                  )
+                : LinearGradient(
+                    colors: [
+                      avatarColors[index % avatarColors.length],
+                      avatarColors[index % avatarColors.length].withOpacity(0.7),
+                    ],
+                  ),
+            borderRadius: BorderRadius.circular(10),
           ),
-          if (participant.hasPin == true)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Icon(
-                Icons.lock_outline,
-                size: 14,
-                color: AppColors.textTertiary(context),
+          child: Center(
+            child: isWinner
+                ? const Icon(Icons.emoji_events_rounded, color: Colors.white, size: 20)
+                : Text(
+                    participant.name[0].toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+          ),
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                participant.name,
+                style: TextStyle(
+                  fontWeight: isWinner ? FontWeight.bold : FontWeight.w500,
+                  color: isWinner ? RaffleDetailScreen.successGreen : RaffleDetailScreen.textPrimary,
+                  fontSize: 14,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-        ],
+            if (isWinner)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [RaffleDetailScreen.successGreen, Color(0xFF4ADE80)],
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Ganhador',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        subtitle: Text(
+          participant.email,
+          style: const TextStyle(
+            color: RaffleDetailScreen.textSecondary,
+            fontSize: 12,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: Text(
+          dateFormat.format(participant.createdAt),
+          style: const TextStyle(
+            color: RaffleDetailScreen.textTertiary,
+            fontSize: 10,
+          ),
+        ),
       ),
-    ).animate().fadeIn(
-          delay: Duration(milliseconds: 30 * index),
-          duration: const Duration(milliseconds: 200),
-        );
+    );
   }
 }

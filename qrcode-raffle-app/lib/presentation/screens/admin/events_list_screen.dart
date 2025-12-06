@@ -8,11 +8,37 @@ import '../../../domain/entities/event.dart';
 import '../../providers/events_provider.dart';
 import '../shared/confirmation_screen.dart';
 
-class EventsListScreen extends ConsumerWidget {
+class EventsListScreen extends ConsumerStatefulWidget {
   const EventsListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EventsListScreen> createState() => _EventsListScreenState();
+}
+
+class _EventsListScreenState extends ConsumerState<EventsListScreen>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh data when app comes back to foreground
+      ref.read(eventsListProvider.notifier).refresh();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(eventsListProvider);
 
     ref.listen<EventsListState>(
@@ -40,9 +66,13 @@ class EventsListScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: _buildContent(context, ref, state),
+      body: _buildContent(context, state),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/admin/events/new'),
+        onPressed: () async {
+          await context.push('/admin/events/new');
+          // Refresh when returning from create screen
+          ref.read(eventsListProvider.notifier).refresh();
+        },
         icon: const Icon(Icons.add),
         label: const Text('Novo Evento'),
         backgroundColor: AppColors.primary,
@@ -51,7 +81,7 @@ class EventsListScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context, WidgetRef ref, EventsListState state) {
+  Widget _buildContent(BuildContext context, EventsListState state) {
     if (state.isLoading) {
       return const Center(
         child: CircularProgressIndicator(),
@@ -59,7 +89,7 @@ class EventsListScreen extends ConsumerWidget {
     }
 
     if (state.error != null && state.events.isEmpty) {
-      return _buildError(context, ref, state.error!);
+      return _buildError(context, state.error!);
     }
 
     if (state.events.isEmpty) {
@@ -76,7 +106,7 @@ class EventsListScreen extends ConsumerWidget {
           return _EventCard(
             event: event,
             onTap: () => context.push('/admin/events/${event.id}'),
-            onDelete: () => _showDeleteDialog(context, ref, event.id, event.name),
+            onDelete: () => _showDeleteDialog(context, event.id, event.name),
           ).animate().fadeIn(
                 delay: Duration(milliseconds: 50 * index),
                 duration: const Duration(milliseconds: 300),
@@ -86,7 +116,7 @@ class EventsListScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildError(BuildContext context, WidgetRef ref, String error) {
+  Widget _buildError(BuildContext context, String error) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -158,7 +188,6 @@ class EventsListScreen extends ConsumerWidget {
 
   Future<void> _showDeleteDialog(
     BuildContext context,
-    WidgetRef ref,
     String id,
     String name,
   ) async {

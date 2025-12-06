@@ -398,11 +398,26 @@ class _CreateTalkScreenState extends ConsumerState<CreateTalkScreen> {
 
       await ref.read(trackDetailProvider(widget.trackId).notifier).createTalk(request);
 
+      // Force refresh the provider to reload data from API
+      await ref.read(trackDetailProvider(widget.trackId).notifier).refresh();
+
+      // Get the track to find the eventId
+      final trackState = ref.read(trackDetailProvider(widget.trackId));
+      final eventId = trackState.track?.eventId;
+
+      // Refresh eventDetailProvider so timeline in EventsCarouselScreen updates
+      if (eventId != null) {
+        ref.invalidate(eventDetailProvider(eventId));
+      }
+
+      // Also refresh events list
+      await ref.read(eventsListProvider.notifier).refresh();
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Palestra "${_titleController.text}" criada!')),
         );
-        context.pop();
+        context.pop(true); // Return true to indicate creation success
       }
     } finally {
       if (mounted) {

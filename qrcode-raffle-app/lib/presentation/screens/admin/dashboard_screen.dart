@@ -1,250 +1,354 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../domain/entities/raffle.dart';
-import '../../providers/raffle_provider.dart';
+import '../../../domain/entities/event.dart';
+import '../../providers/events_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/theme_provider.dart';
-import '../../widgets/raffle_card_widget.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
+  // NAVA SUMMIT colors
+  static const Color _primaryPurple = Color(0xFF9333EA);
+  static const Color _primaryPink = Color(0xFFDB2777);
+  static const Color _darkBg = Color(0xFF09090B);
+  static const Color _cardBg = Color(0xFF18181B);
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final raffleState = ref.watch(raffleListProvider);
+    final eventsState = ref.watch(eventsListProvider);
     final authStateAsync = ref.watch(authStateProvider);
     final authState = authStateAsync.valueOrNull;
-    final isDark = ref.watch(isDarkModeProvider);
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-        actions: [
-          // Theme toggle button
-          IconButton(
-            icon: Icon(
-              isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-            ),
-            onPressed: () => ref.read(themeProvider.notifier).toggleTheme(),
-            tooltip: isDark ? 'Modo claro' : 'Modo escuro',
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => ref.read(raffleListProvider.notifier).refresh(),
-            tooltip: 'Atualizar',
-          ),
-          PopupMenuButton<String>(
-            icon: CircleAvatar(
-              backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
-              radius: 16,
-              child: Text(
-                (authState?.user?.name ?? 'A')[0].toUpperCase(),
-                style: TextStyle(
-                  color: colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-            onSelected: (value) {
-              if (value == 'logout') {
-                ref.read(authStateProvider.notifier).logout();
-                context.go('/login');
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                enabled: false,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      authState?.user?.name ?? 'Admin',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: colorScheme.onSurface,
-                      ),
-                    ),
-                    Text(
-                      authState?.user?.email ?? '',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: colorScheme.onSurface.withValues(alpha: 0.6),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              PopupMenuItem(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout, size: 18, color: colorScheme.error),
-                    const SizedBox(width: 8),
-                    Text('Sair', style: TextStyle(color: colorScheme.error)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
+      backgroundColor: _darkBg,
       body: RefreshIndicator(
-        onRefresh: () => ref.read(raffleListProvider.notifier).refresh(),
-        child: SingleChildScrollView(
+        onRefresh: () => ref.read(eventsListProvider.notifier).refresh(),
+        color: _primaryPurple,
+        child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
+          slivers: [
+            // Gradient Header
+            SliverToBoxAdapter(
+              child: _buildHeader(context, authState?.user?.name ?? 'Admin', ref),
+            ),
+
+            // Stats Section
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+                child: _StatsGrid(events: eventsState.events)
+                    .animate()
+                    .fadeIn(delay: 100.ms, duration: 400.ms)
+                    .slideY(begin: 0.1, end: 0, delay: 100.ms, duration: 400.ms),
+              ),
+            ),
+
+            // Quick Actions
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 28, 16, 0),
+                child: _QuickActionsSection()
+                    .animate()
+                    .fadeIn(delay: 200.ms, duration: 400.ms)
+                    .slideY(begin: 0.1, end: 0, delay: 200.ms, duration: 400.ms),
+              ),
+            ),
+
+            // Recent Events
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 28, 16, 0),
+                child: _RecentEventsSection(
+                  events: eventsState.events,
+                  isLoading: eventsState.isLoading,
+                ).animate()
+                    .fadeIn(delay: 300.ms, duration: 400.ms)
+                    .slideY(begin: 0.1, end: 0, delay: 300.ms, duration: 400.ms),
+              ),
+            ),
+
+            // Bottom spacing
+            const SliverToBoxAdapter(
+              child: SizedBox(height: 100),
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: const LinearGradient(
+            colors: [_primaryPurple, _primaryPink],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: _primaryPurple.withOpacity(0.4),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: () => context.push('/admin/events/new'),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          icon: const Icon(Icons.add, color: Colors.white),
+          label: const Text(
+            'Novo Evento',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, String userName, WidgetRef ref) {
+    final hour = DateTime.now().hour;
+    String greeting;
+    IconData greetingIcon;
+    if (hour < 12) {
+      greeting = 'Bom dia';
+      greetingIcon = Icons.wb_sunny_outlined;
+    } else if (hour < 18) {
+      greeting = 'Boa tarde';
+      greetingIcon = Icons.wb_sunny;
+    } else {
+      greeting = 'Boa noite';
+      greetingIcon = Icons.nightlight_outlined;
+    }
+
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [_primaryPurple, _primaryPink],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Welcome section
-              _WelcomeSection(userName: authState?.user?.name ?? 'Admin')
-                  .animate()
-                  .fadeIn(duration: 300.ms),
+              // Top bar
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Back button
+                  GestureDetector(
+                    onTap: () => context.go('/home'),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.arrow_back,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                  // Actions
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => ref.read(eventsListProvider.notifier).refresh(),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.refresh,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () {
+                          ref.read(authStateProvider.notifier).logout();
+                          context.go('/login');
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.logout,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
               const SizedBox(height: 24),
-
-              // Stats cards
-              _StatsSection(raffles: raffleState.raffles)
-                  .animate()
-                  .fadeIn(delay: 100.ms, duration: 300.ms),
-              const SizedBox(height: 24),
-
-              // Quick actions
-              _QuickActionsSection()
-                  .animate()
-                  .fadeIn(delay: 200.ms, duration: 300.ms),
-              const SizedBox(height: 24),
-
-              // Recent raffles
-              _RecentRafflesSection(
-                raffles: raffleState.raffles,
-                isLoading: raffleState.isLoading,
-              ).animate().fadeIn(delay: 300.ms, duration: 300.ms),
+              // Greeting
+              Row(
+                children: [
+                  Icon(
+                    greetingIcon,
+                    color: Colors.white.withOpacity(0.8),
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    greeting,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ).animate()
+                  .fadeIn(duration: 300.ms)
+                  .slideX(begin: -0.1, end: 0, duration: 300.ms),
+              const SizedBox(height: 4),
+              // User name
+              Text(
+                userName.split(' ').first,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.5,
+                ),
+              ).animate()
+                  .fadeIn(delay: 100.ms, duration: 300.ms)
+                  .slideX(begin: -0.1, end: 0, delay: 100.ms, duration: 300.ms),
+              const SizedBox(height: 8),
+              // Subtitle
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.admin_panel_settings,
+                      color: Colors.white,
+                      size: 14,
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'Painel Administrativo',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ).animate()
+                  .fadeIn(delay: 200.ms, duration: 300.ms)
+                  .scale(begin: const Offset(0.9, 0.9), end: const Offset(1, 1), delay: 200.ms, duration: 300.ms),
             ],
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/admin/raffles/new'),
-        icon: const Icon(Icons.add),
-        label: const Text('Novo Sorteio'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-      ),
     );
   }
 }
 
-class _WelcomeSection extends StatelessWidget {
-  final String userName;
+class _StatsGrid extends StatelessWidget {
+  final List<Event> events;
 
-  const _WelcomeSection({required this.userName});
-
-  @override
-  Widget build(BuildContext context) {
-    final hour = DateTime.now().hour;
-    String greeting;
-    if (hour < 12) {
-      greeting = 'Bom dia';
-    } else if (hour < 18) {
-      greeting = 'Boa tarde';
-    } else {
-      greeting = 'Boa noite';
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '$greeting,',
-          style: TextStyle(
-            color: Colors.grey[600],
-            fontSize: 16,
-          ),
-        ),
-        Text(
-          userName.split(' ').first,
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatsSection extends StatelessWidget {
-  final List<Raffle> raffles;
-
-  const _StatsSection({required this.raffles});
+  const _StatsGrid({required this.events});
 
   @override
   Widget build(BuildContext context) {
-    final active = raffles.where((r) => r.isActive).length;
-    final closed = raffles.where((r) => r.isClosed).length;
-    final drawn = raffles.where((r) => r.isDrawn).length;
-    final totalParticipants =
-        raffles.fold<int>(0, (sum, r) => sum + r.totalParticipants);
+    final ongoing = events.where((e) => e.isOngoing).length;
+    final totalTracks = events.fold<int>(0, (sum, e) => sum + e.totalTracks);
+    final totalAttendances = events.fold<int>(0, (sum, e) => sum + e.totalAttendances);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            const Icon(Icons.bar_chart, size: 20, color: AppColors.primary),
-            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: DashboardScreen._primaryPurple.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.analytics_outlined,
+                color: DashboardScreen._primaryPurple,
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 10),
             const Text(
-              'Resumo',
+              'Visão Geral',
               style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         GridView.count(
           crossAxisCount: 2,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
-          childAspectRatio: 1.5,
+          childAspectRatio: 1.4,
           children: [
-            _StatCard(
-              title: 'Total',
-              value: '${raffles.length}',
-              subtitle: 'sorteios',
-              icon: Icons.casino,
-              color: AppColors.primary,
+            _GlassStatCard(
+              title: 'Eventos',
+              value: '${events.length}',
+              subtitle: 'total',
+              icon: Icons.event,
+              gradient: const [Color(0xFF9333EA), Color(0xFF7C3AED)],
             ),
-            _StatCard(
-              title: 'Ativos',
-              value: '$active',
-              subtitle: 'abertos',
+            _GlassStatCard(
+              title: 'Acontecendo',
+              value: '$ongoing',
+              subtitle: 'agora',
               icon: Icons.play_circle,
-              color: AppColors.statusActive,
+              gradient: const [Color(0xFF10B981), Color(0xFF059669)],
             ),
-            _StatCard(
-              title: 'Finalizados',
-              value: '$drawn',
-              subtitle: 'sorteados',
-              icon: Icons.emoji_events,
-              color: AppColors.statusDrawn,
+            _GlassStatCard(
+              title: 'Trilhas',
+              value: '$totalTracks',
+              subtitle: 'criadas',
+              icon: Icons.layers,
+              gradient: const [Color(0xFFF59E0B), Color(0xFFD97706)],
             ),
-            _StatCard(
-              title: 'Participações',
-              value: '$totalParticipants',
-              subtitle: 'nos sorteios',
+            _GlassStatCard(
+              title: 'Presenças',
+              value: '$totalAttendances',
+              subtitle: 'registradas',
               icon: Icons.how_to_reg,
-              color: AppColors.info,
+              gradient: const [Color(0xFFDB2777), Color(0xFFBE185D)],
             ),
           ],
         ),
@@ -253,71 +357,95 @@ class _StatsSection extends StatelessWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
+class _GlassStatCard extends StatelessWidget {
   final String title;
   final String value;
   final String subtitle;
   final IconData icon;
-  final Color color;
+  final List<Color> gradient;
 
-  const _StatCard({
+  const _GlassStatCard({
     required this.title,
     required this.value,
     required this.subtitle,
     required this.icon,
-    required this.color,
+    required this.gradient,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 12,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, size: 16, color: color),
-                ),
-              ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          decoration: BoxDecoration(
+            color: DashboardScreen._cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.1),
+              width: 1,
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: color,
+          ),
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.6),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey[500],
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: gradient,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icon, size: 14, color: Colors.white),
                   ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ShaderMask(
+                    shaderCallback: (bounds) => LinearGradient(
+                      colors: gradient,
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ).createShader(bounds),
+                    child: Text(
+                      value,
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white.withOpacity(0.4),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -332,53 +460,65 @@ class _QuickActionsSection extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Icon(Icons.flash_on, size: 20, color: AppColors.secondary),
-            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: DashboardScreen._primaryPink.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.flash_on,
+                color: DashboardScreen._primaryPink,
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 10),
             const Text(
               'Ações Rápidas',
               style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
               child: _QuickActionCard(
-                icon: Icons.add_circle,
-                label: 'Novo Sorteio',
-                color: AppColors.primary,
-                onTap: () => context.push('/admin/raffles/new'),
+                icon: Icons.add_circle_outline,
+                label: 'Novo\nEvento',
+                gradient: const [Color(0xFF9333EA), Color(0xFF7C3AED)],
+                onTap: () => context.push('/admin/events/new'),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: _QuickActionCard(
-                icon: Icons.list_alt,
-                label: 'Sorteios',
-                color: AppColors.secondary,
-                onTap: () => context.push('/admin/raffles'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _QuickActionCard(
-                icon: Icons.event,
-                label: 'Eventos',
-                color: AppColors.info,
+                icon: Icons.event_outlined,
+                label: 'Ver\nEventos',
+                gradient: const [Color(0xFF3B82F6), Color(0xFF2563EB)],
                 onTap: () => context.push('/admin/events'),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: _QuickActionCard(
-                icon: Icons.leaderboard,
-                label: 'Ranking',
-                color: AppColors.success,
+                icon: Icons.leaderboard_outlined,
+                label: 'Ver\nRanking',
+                gradient: const [Color(0xFFF59E0B), Color(0xFFD97706)],
                 onTap: () => context.push('/admin/ranking'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _QuickActionCard(
+                icon: Icons.confirmation_number_outlined,
+                label: 'Ver\nSorteios',
+                gradient: const [Color(0xFFDB2777), Color(0xFFBE185D)],
+                onTap: () => context.push('/admin/raffles'),
               ),
             ),
           ],
@@ -391,65 +531,82 @@ class _QuickActionsSection extends StatelessWidget {
 class _QuickActionCard extends StatelessWidget {
   final IconData icon;
   final String label;
-  final Color color;
+  final List<Color> gradient;
   final VoidCallback onTap;
 
   const _QuickActionCard({
     required this.icon,
     required this.label,
-    required this.color,
+    required this.gradient,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[700],
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        decoration: BoxDecoration(
+          color: DashboardScreen._cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.1),
+            width: 1,
           ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: gradient,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: gradient[0].withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Icon(icon, color: Colors.white, size: 22),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Colors.white.withOpacity(0.8),
+                height: 1.2,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _RecentRafflesSection extends StatelessWidget {
-  final List<Raffle> raffles;
+class _RecentEventsSection extends StatelessWidget {
+  final List<Event> events;
   final bool isLoading;
 
-  const _RecentRafflesSection({
-    required this.raffles,
+  const _RecentEventsSection({
+    required this.events,
     required this.isLoading,
   });
 
   @override
   Widget build(BuildContext context) {
-    final recentRaffles = raffles.take(3).toList();
+    final recentEvents = events.take(5).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -459,93 +616,352 @@ class _RecentRafflesSection extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.history, size: 20, color: AppColors.primary),
-                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3B82F6).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.history,
+                    color: Color(0xFF3B82F6),
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
                 const Text(
-                  'Sorteios Recentes',
+                  'Eventos Recentes',
                   style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
-            TextButton(
-              onPressed: () => context.push('/admin/raffles'),
-              child: const Text('Ver todos'),
+            GestureDetector(
+              onTap: () => context.push('/admin/events'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: DashboardScreen._primaryPurple.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Ver todos',
+                      style: TextStyle(
+                        color: DashboardScreen._primaryPurple,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(width: 4),
+                    Icon(
+                      Icons.arrow_forward,
+                      color: DashboardScreen._primaryPurple,
+                      size: 14,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
         if (isLoading)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.all(32),
-              child: CircularProgressIndicator(),
-            ),
-          )
-        else if (recentRaffles.isEmpty)
+          _buildLoadingState()
+        else if (recentEvents.isEmpty)
           _buildEmptyState(context)
         else
           Column(
-            children: recentRaffles.map((raffle) {
+            children: recentEvents.asMap().entries.map((entry) {
+              final index = entry.key;
+              final event = entry.value;
               return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: RaffleCardWidget(
-                  raffle: raffle,
-                  onTap: () => context.push('/admin/raffles/${raffle.id}'),
-                ),
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _EventCard(
+                  event: event,
+                  onTap: () => context.push('/admin/events/${event.id}'),
+                ).animate()
+                    .fadeIn(delay: (100 * index).ms, duration: 300.ms)
+                    .slideX(begin: 0.1, end: 0, delay: (100 * index).ms, duration: 300.ms),
               );
             }).toList(),
           ),
-        const SizedBox(height: 80), // Space for FAB
       ],
     );
   }
 
+  Widget _buildLoadingState() {
+    return Container(
+      padding: const EdgeInsets.all(40),
+      decoration: BoxDecoration(
+        color: DashboardScreen._cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+          width: 1,
+        ),
+      ),
+      child: const Center(
+        child: CircularProgressIndicator(
+          color: DashboardScreen._primaryPurple,
+          strokeWidth: 2,
+        ),
+      ),
+    );
+  }
+
   Widget _buildEmptyState(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: DashboardScreen._cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [DashboardScreen._primaryPurple, DashboardScreen._primaryPink],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.event_available,
+              size: 36,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Nenhum evento ainda',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Crie seu primeiro evento para começar!',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.5),
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 20),
+          GestureDetector(
+            onTap: () => context.push('/admin/events/new'),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [DashboardScreen._primaryPurple, DashboardScreen._primaryPink],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: DashboardScreen._primaryPurple.withOpacity(0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-              child: const Icon(
-                Icons.casino,
-                size: 40,
-                color: AppColors.primary,
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add, color: Colors.white, size: 18),
+                  SizedBox(width: 8),
+                  Text(
+                    'Criar Evento',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Nenhum sorteio ainda',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EventCard extends StatelessWidget {
+  final Event event;
+  final VoidCallback onTap;
+
+  const _EventCard({
+    required this.event,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final statusInfo = _getStatusInfo();
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: DashboardScreen._cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            // Event icon with gradient
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    statusInfo.$3[0].withOpacity(0.2),
+                    statusInfo.$3[1].withOpacity(0.2),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: statusInfo.$3[0].withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Icon(
+                Icons.event,
+                color: statusInfo.$3[0],
+                size: 22,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Crie seu primeiro sorteio!',
-              style: TextStyle(
-                color: Colors.grey[500],
-                fontSize: 13,
+            const SizedBox(width: 14),
+            // Event details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    event.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: Colors.white,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.layers_outlined,
+                        size: 13,
+                        color: Colors.white.withOpacity(0.4),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${event.totalTracks} trilhas',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.4),
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Icon(
+                        Icons.people_outline,
+                        size: 13,
+                        color: Colors.white.withOpacity(0.4),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${event.totalAttendances} presenças',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.4),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () => context.push('/admin/raffles/new'),
-              icon: const Icon(Icons.add),
-              label: const Text('Criar Sorteio'),
+            // Status badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: statusInfo.$3,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: statusInfo.$3[0].withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    statusInfo.$2,
+                    size: 12,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    statusInfo.$1,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.chevron_right,
+              color: Colors.white.withOpacity(0.3),
+              size: 20,
             ),
           ],
         ),
       ),
     );
+  }
+
+  (String, IconData, List<Color>) _getStatusInfo() {
+    if (event.hasEnded) {
+      return ('Encerrado', Icons.check_circle, [const Color(0xFF6B7280), const Color(0xFF4B5563)]);
+    } else if (event.isOngoing) {
+      return ('Ativo', Icons.play_circle, [const Color(0xFF10B981), const Color(0xFF059669)]);
+    } else {
+      return ('Em breve', Icons.schedule, [const Color(0xFF3B82F6), const Color(0xFF2563EB)]);
+    }
   }
 }

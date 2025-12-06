@@ -1,17 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Background message handler - must be top-level function
-@pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
-  debugPrint('Handling background message: ${message.messageId}');
-}
+// NOTE: Firebase Messaging temporarily disabled due to iOS build issue with modular headers
+// TODO: Re-enable when firebase_messaging 15+ is available and compatible
 
 /// Notification types from backend
 enum NotificationType {
@@ -27,9 +21,8 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
   return NotificationService();
 });
 
-/// Service to handle push notifications
+/// Service to handle push notifications (stub version without Firebase Messaging)
 class NotificationService {
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
 
@@ -48,48 +41,9 @@ class NotificationService {
 
   /// Initialize the notification service
   Future<void> initialize() async {
-    // Request permissions
-    await _requestPermissions();
-
     // Initialize local notifications
     await _initializeLocalNotifications();
-
-    // Setup foreground message handler
-    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-
-    // Setup background/terminated message handler
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-
-    // Handle notification tap when app is in background
-    FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
-
-    // Check if app was opened from notification
-    final initialMessage = await _messaging.getInitialMessage();
-    if (initialMessage != null) {
-      _handleNotificationTap(initialMessage);
-    }
-
-    debugPrint('NotificationService initialized');
-  }
-
-  /// Request notification permissions
-  Future<bool> _requestPermissions() async {
-    final settings = await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-      provisional: false,
-      announcement: false,
-      carPlay: false,
-      criticalAlert: false,
-    );
-
-    final isAuthorized =
-        settings.authorizationStatus == AuthorizationStatus.authorized ||
-            settings.authorizationStatus == AuthorizationStatus.provisional;
-
-    debugPrint('Notification permission: ${settings.authorizationStatus}');
-    return isAuthorized;
+    debugPrint('NotificationService initialized (stub mode - no FCM)');
   }
 
   /// Initialize local notifications plugin
@@ -122,90 +76,30 @@ class NotificationService {
     }
   }
 
-  /// Handle foreground messages
-  void _handleForegroundMessage(RemoteMessage message) {
-    debugPrint('Foreground message: ${message.notification?.title}');
-
-    final notification = message.notification;
-    final android = message.notification?.android;
-
-    // Show local notification when app is in foreground
-    if (notification != null) {
-      _localNotifications.show(
-        notification.hashCode,
-        notification.title,
-        notification.body,
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            _channel.id,
-            _channel.name,
-            channelDescription: _channel.description,
-            importance: Importance.high,
-            priority: Priority.high,
-            icon: android?.smallIcon ?? '@mipmap/ic_launcher',
-          ),
-          iOS: const DarwinNotificationDetails(
-            presentAlert: true,
-            presentBadge: true,
-            presentSound: true,
-          ),
-        ),
-        payload: jsonEncode(message.data),
-      );
-    }
-  }
-
-  /// Handle notification tap
-  void _handleNotificationTap(RemoteMessage message) {
-    debugPrint('Notification tapped: ${message.data}');
-    onNotificationTap?.call(jsonEncode(message.data));
-  }
-
-  /// Get FCM token for device
+  /// Get FCM token for device (stub - returns null)
   Future<String?> getToken() async {
-    try {
-      final token = await _messaging.getToken();
-      debugPrint('FCM Token: ${token?.substring(0, 20)}...');
-      return token;
-    } catch (e) {
-      debugPrint('Error getting FCM token: $e');
-      return null;
-    }
+    debugPrint('FCM not available - returning null token');
+    return null;
   }
 
-  /// Subscribe to token refresh
+  /// Subscribe to token refresh (stub - no-op)
   void onTokenRefresh(Function(String) callback) {
-    _messaging.onTokenRefresh.listen(callback);
+    debugPrint('FCM not available - token refresh disabled');
   }
 
-  /// Subscribe to topic
+  /// Subscribe to topic (stub - no-op)
   Future<void> subscribeToTopic(String topic) async {
-    try {
-      await _messaging.subscribeToTopic(topic);
-      debugPrint('Subscribed to topic: $topic');
-    } catch (e) {
-      debugPrint('Error subscribing to topic: $e');
-    }
+    debugPrint('FCM not available - topic subscription disabled');
   }
 
-  /// Unsubscribe from topic
+  /// Unsubscribe from topic (stub - no-op)
   Future<void> unsubscribeFromTopic(String topic) async {
-    try {
-      await _messaging.unsubscribeFromTopic(topic);
-      debugPrint('Unsubscribed from topic: $topic');
-    } catch (e) {
-      debugPrint('Error unsubscribing from topic: $e');
-    }
+    debugPrint('FCM not available - topic unsubscription disabled');
   }
 
-  /// Delete FCM token (on logout)
+  /// Delete FCM token (stub - no-op)
   Future<void> deleteToken() async {
-    try {
-      await _messaging.deleteToken();
-      debugPrint('FCM token deleted');
-    } catch (e) {
-      debugPrint('Error deleting FCM token: $e');
-    }
+    debugPrint('FCM not available - token deletion disabled');
   }
 
   /// Show a local notification

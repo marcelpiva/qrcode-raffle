@@ -19,8 +19,10 @@ class _QrCodeRaffleAppState extends ConsumerState<QrCodeRaffleApp> {
   @override
   void initState() {
     super.initState();
+    debugPrint('🎯 QrCodeRaffleApp initState');
     // Initialize notifications after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      debugPrint('📱 Post frame callback - initializing notifications');
       _initializeNotifications();
     });
   }
@@ -41,23 +43,42 @@ class _QrCodeRaffleAppState extends ConsumerState<QrCodeRaffleApp> {
 
   @override
   Widget build(BuildContext context) {
-    final router = ref.watch(routerProvider);
-    final themeMode = ref.watch(themeProvider);
+    debugPrint('🔨 QrCodeRaffleApp build() started');
 
-    // Update system UI based on theme
-    final isDark = themeMode == ThemeMode.dark;
-    SystemChrome.setSystemUIOverlayStyle(
-      isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
-    );
+    try {
+      final router = ref.watch(routerProvider);
+      debugPrint('✅ Router obtained');
 
-    return MaterialApp.router(
-      title: AppConstants.appName,
-      debugShowCheckedModeBanner: false,
-      theme: _buildLightTheme(),
-      darkTheme: _buildDarkTheme(),
-      themeMode: themeMode,
-      routerConfig: router,
-    );
+      final themeMode = ref.watch(themeProvider);
+      debugPrint('✅ ThemeMode obtained: $themeMode');
+
+      // Update system UI based on theme
+      final isDark = themeMode == ThemeMode.dark;
+      SystemChrome.setSystemUIOverlayStyle(
+        isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+      );
+      debugPrint('✅ SystemChrome set');
+
+      debugPrint('🏗️ Building MaterialApp.router...');
+      return MaterialApp.router(
+        title: AppConstants.appName,
+        debugShowCheckedModeBanner: false,
+        theme: _buildLightTheme(),
+        darkTheme: _buildDarkTheme(),
+        themeMode: themeMode,
+        routerConfig: router,
+      );
+    } catch (e, stack) {
+      debugPrint('❌ Error in build(): $e');
+      debugPrint('Stack: $stack');
+      return MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Text('Error: $e'),
+          ),
+        ),
+      );
+    }
   }
 
   /// Light theme matching web app

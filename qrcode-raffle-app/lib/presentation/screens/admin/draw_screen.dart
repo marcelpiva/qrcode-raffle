@@ -1,10 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:confetti/confetti.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../providers/draw_provider.dart';
 import '../../providers/raffle_provider.dart';
 import '../../widgets/slot_machine_widget.dart';
@@ -12,6 +12,20 @@ import '../../widgets/winner_celebration_widget.dart';
 
 class DrawScreen extends ConsumerStatefulWidget {
   final String raffleId;
+
+  // NAVA SUMMIT Colors
+  static const Color primaryPurple = Color(0xFF9333EA);
+  static const Color primaryPink = Color(0xFFDB2777);
+  static const Color darkBg = Color(0xFF09090B);
+  static const Color cardBg = Color(0xFF18181B);
+  static const Color cardBorder = Color(0xFF27272A);
+  static const Color textPrimary = Color(0xFFFAFAFA);
+  static const Color textSecondary = Color(0xFFA1A1AA);
+  static const Color textTertiary = Color(0xFF71717A);
+  static const Color successGreen = Color(0xFF22C55E);
+  static const Color warningOrange = Color(0xFFF97316);
+  static const Color infoBlue = Color(0xFF3B82F6);
+  static const Color errorRed = Color(0xFFEF4444);
 
   const DrawScreen({
     super.key,
@@ -29,15 +43,12 @@ class _DrawScreenState extends ConsumerState<DrawScreen> {
   void initState() {
     super.initState();
     _confettiController = ConfettiController(duration: const Duration(seconds: 5));
-
-    // Set system UI for immersive experience
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   }
 
   @override
   void dispose() {
     _confettiController.dispose();
-    // Restore system UI
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
@@ -47,48 +58,20 @@ class _DrawScreenState extends ConsumerState<DrawScreen> {
     final state = ref.watch(drawProvider(widget.raffleId));
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
-          onPressed: () => _handleClose(context),
-        ),
-        title: Text(
-          state.raffle?.name ?? 'Sorteio',
-          style: const TextStyle(color: Colors.white),
-        ),
-        centerTitle: true,
-        actions: [
-          if (state.raffle != null)
-            IconButton(
-              icon: const Icon(Icons.fullscreen, color: Colors.white),
-              onPressed: () => context.push('/display/${widget.raffleId}'),
-              tooltip: 'Modo projeção',
-            ),
-        ],
-      ),
+      backgroundColor: DrawScreen.darkBg,
       body: Stack(
         children: [
-          // Background gradient
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  AppColors.backgroundDark,
-                  const Color(0xFF151515),
-                  Colors.black,
-                ],
-              ),
-            ),
-          ),
+          // Background gradient with decorative elements
+          _buildBackground(),
 
           // Main content
           SafeArea(
-            child: _buildContent(context, ref, state),
+            child: Column(
+              children: [
+                _buildHeader(context, state),
+                Expanded(child: _buildContent(context, ref, state)),
+              ],
+            ),
           ),
 
           // Confetti overlay
@@ -99,13 +82,11 @@ class _DrawScreenState extends ConsumerState<DrawScreen> {
               blastDirectionality: BlastDirectionality.explosive,
               shouldLoop: false,
               colors: const [
-                AppColors.primary,
-                AppColors.secondary,
-                AppColors.success,
+                DrawScreen.primaryPurple,
+                DrawScreen.primaryPink,
+                DrawScreen.successGreen,
                 Colors.yellow,
                 Colors.orange,
-                Colors.pink,
-                Colors.purple,
                 Colors.cyan,
               ],
               numberOfParticles: 50,
@@ -120,10 +101,112 @@ class _DrawScreenState extends ConsumerState<DrawScreen> {
     );
   }
 
+  Widget _buildBackground() {
+    return Stack(
+      children: [
+        // Base gradient
+        Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF1A0A2E),
+                DrawScreen.darkBg,
+                Color(0xFF0A0A0A),
+              ],
+            ),
+          ),
+        ),
+        // Decorative circles
+        Positioned(
+          right: -100,
+          top: -100,
+          child: Container(
+            width: 300,
+            height: 300,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  DrawScreen.primaryPurple.withOpacity(0.3),
+                  DrawScreen.primaryPurple.withOpacity(0),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: -80,
+          bottom: 100,
+          child: Container(
+            width: 200,
+            height: 200,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  DrawScreen.primaryPink.withOpacity(0.2),
+                  DrawScreen.primaryPink.withOpacity(0),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, DrawState state) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.close_rounded, color: Colors.white),
+              onPressed: () => _handleClose(context),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              state.raffle?.name ?? 'Sorteio',
+              style: const TextStyle(
+                color: DrawScreen.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (state.raffle != null)
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.fullscreen_rounded, color: Colors.white),
+                onPressed: () => context.push('/display/${widget.raffleId}'),
+                tooltip: 'Modo projecao',
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildContent(BuildContext context, WidgetRef ref, DrawState state) {
     if (state.isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
+      return Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(DrawScreen.primaryPurple),
+        ),
       );
     }
 
@@ -132,12 +215,7 @@ class _DrawScreenState extends ConsumerState<DrawScreen> {
     }
 
     if (state.raffle == null) {
-      return const Center(
-        child: Text(
-          'Sorteio não encontrado',
-          style: TextStyle(color: Colors.white),
-        ),
-      );
+      return _buildNotFound(context);
     }
 
     switch (state.phase) {
@@ -170,232 +248,247 @@ class _DrawScreenState extends ConsumerState<DrawScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // Main card with prize and participants
-            Container(
-              width: cardWidth,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    const Color(0xFF2A2A2A),
-                    const Color(0xFF1F1F1F),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: Colors.white.withAlpha(20),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withAlpha(30),
-                    blurRadius: 40,
-                    spreadRadius: 0,
-                    offset: const Offset(0, 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  width: cardWidth,
+                  decoration: BoxDecoration(
+                    color: DrawScreen.cardBg.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: DrawScreen.cardBorder),
+                    boxShadow: [
+                      BoxShadow(
+                        color: DrawScreen.primaryPurple.withOpacity(0.2),
+                        blurRadius: 40,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  // Prize section with gradient header
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          AppColors.primary.withAlpha(40),
-                          AppColors.secondary.withAlpha(20),
-                        ],
-                      ),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(24),
-                        topRight: Radius.circular(24),
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        // Trophy icon with glow
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            gradient: AppColors.primaryGradient,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primary.withAlpha(100),
-                                blurRadius: 20,
-                                spreadRadius: 2,
-                              ),
+                  child: Column(
+                    children: [
+                      // Prize section with gradient header
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(28),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              DrawScreen.primaryPurple.withOpacity(0.3),
+                              DrawScreen.primaryPink.withOpacity(0.2),
                             ],
                           ),
-                          child: const Icon(
-                            Icons.emoji_events,
-                            size: 40,
-                            color: Colors.white,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(24),
+                            topRight: Radius.circular(24),
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'PRÊMIO',
-                          style: TextStyle(
-                            color: AppColors.mutedForegroundDark,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 3,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          raffle.prize,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            height: 1.3,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Divider
-                  Container(
-                    height: 1,
-                    color: Colors.white.withAlpha(10),
-                  ),
-
-                  // Participants section
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        child: Column(
                           children: [
+                            // Trophy icon with glow
                             Container(
-                              padding: const EdgeInsets.all(10),
+                              padding: const EdgeInsets.all(20),
                               decoration: BoxDecoration(
-                                color: AppColors.info.withAlpha(30),
-                                borderRadius: BorderRadius.circular(12),
+                                gradient: const LinearGradient(
+                                  colors: [DrawScreen.primaryPurple, DrawScreen.primaryPink],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: DrawScreen.primaryPurple.withOpacity(0.5),
+                                    blurRadius: 30,
+                                    spreadRadius: 5,
+                                  ),
+                                ],
                               ),
                               child: const Icon(
-                                Icons.people_alt_rounded,
-                                color: AppColors.info,
-                                size: 24,
+                                Icons.emoji_events_rounded,
+                                size: 44,
+                                color: Colors.white,
                               ),
                             ),
-                            const SizedBox(width: 16),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${state.participants.length}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 36,
-                                    fontWeight: FontWeight.bold,
-                                    height: 1,
-                                  ),
+                            const SizedBox(height: 20),
+                            ShaderMask(
+                              shaderCallback: (bounds) => const LinearGradient(
+                                colors: [DrawScreen.primaryPurple, DrawScreen.primaryPink],
+                              ).createShader(bounds),
+                              child: const Text(
+                                'PREMIO',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 4,
                                 ),
-                                Text(
-                                  'participante${state.participants.length != 1 ? 's' : ''}',
-                                  style: TextStyle(
-                                    color: AppColors.mutedForegroundDark,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              raffle.prize,
+                              style: const TextStyle(
+                                color: DrawScreen.textPrimary,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                height: 1.3,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
                           ],
                         ),
+                      ),
 
-                        // Confirmation info badge
-                        if (raffle.requireConfirmation) ...[
-                          const SizedBox(height: 20),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: AppColors.warning.withAlpha(25),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: AppColors.warning.withAlpha(60),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
+                      // Divider
+                      Container(
+                        height: 1,
+                        color: DrawScreen.cardBorder,
+                      ),
+
+                      // Participants section
+                      Padding(
+                        padding: const EdgeInsets.all(28),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(
-                                  Icons.timer_outlined,
-                                  color: AppColors.warning,
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Confirmação em ${raffle.confirmationTimeoutMinutes ?? 5} min',
-                                  style: const TextStyle(
-                                    color: AppColors.warning,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
+                                Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: DrawScreen.infoBlue.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(16),
                                   ),
+                                  child: const Icon(
+                                    Icons.people_alt_rounded,
+                                    color: DrawScreen.infoBlue,
+                                    size: 28,
+                                  ),
+                                ),
+                                const SizedBox(width: 20),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    ShaderMask(
+                                      shaderCallback: (bounds) => const LinearGradient(
+                                        colors: [DrawScreen.infoBlue, Color(0xFF60A5FA)],
+                                      ).createShader(bounds),
+                                      child: Text(
+                                        '${state.participants.length}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 44,
+                                          fontWeight: FontWeight.bold,
+                                          height: 1,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      'participante${state.participants.length != 1 ? 's' : ''}',
+                                      style: const TextStyle(
+                                        color: DrawScreen.textSecondary,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                          ),
-                        ],
-                      ],
-                    ),
+
+                            // Confirmation info badge
+                            if (raffle.requireConfirmation) ...[
+                              const SizedBox(height: 24),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: DrawScreen.warningOrange.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(24),
+                                  border: Border.all(
+                                    color: DrawScreen.warningOrange.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.timer_outlined,
+                                      color: DrawScreen.warningOrange,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Confirmacao em ${raffle.confirmationTimeoutMinutes ?? 5} min',
+                                      style: const TextStyle(
+                                        color: DrawScreen.warningOrange,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 36),
 
             // Draw button
             Container(
               width: cardWidth,
-              height: 56,
+              height: 64,
               decoration: BoxDecoration(
-                gradient: hasParticipants ? AppColors.primaryGradient : null,
-                color: hasParticipants ? null : AppColors.mutedDark,
-                borderRadius: BorderRadius.circular(28),
+                gradient: hasParticipants
+                    ? const LinearGradient(
+                        colors: [DrawScreen.primaryPurple, DrawScreen.primaryPink],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : null,
+                color: hasParticipants ? null : DrawScreen.cardBg,
+                borderRadius: BorderRadius.circular(32),
                 boxShadow: hasParticipants
                     ? [
                         BoxShadow(
-                          color: AppColors.primary.withAlpha(80),
-                          blurRadius: 20,
-                          spreadRadius: 0,
-                          offset: const Offset(0, 8),
+                          color: DrawScreen.primaryPurple.withOpacity(0.4),
+                          blurRadius: 25,
+                          offset: const Offset(0, 10),
                         ),
                       ]
                     : null,
+                border: hasParticipants ? null : Border.all(color: DrawScreen.cardBorder),
               ),
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: hasParticipants ? () => _startDraw(ref) : null,
-                  borderRadius: BorderRadius.circular(28),
+                  borderRadius: BorderRadius.circular(32),
                   child: Center(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           Icons.casino_rounded,
-                          size: 26,
-                          color: hasParticipants ? Colors.white : AppColors.mutedForegroundDark,
+                          size: 28,
+                          color: hasParticipants ? Colors.white : DrawScreen.textTertiary,
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 14),
                         Text(
                           'SORTEAR',
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            letterSpacing: 2,
-                            color: hasParticipants ? Colors.white : AppColors.mutedForegroundDark,
+                            letterSpacing: 3,
+                            color: hasParticipants ? Colors.white : DrawScreen.textTertiary,
                           ),
                         ),
                       ],
@@ -411,28 +504,29 @@ class _DrawScreenState extends ConsumerState<DrawScreen> {
 
             // No participants message
             if (!hasParticipants) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                width: cardWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 decoration: BoxDecoration(
-                  color: AppColors.error.withAlpha(20),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.error.withAlpha(40)),
+                  color: DrawScreen.errorRed.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: DrawScreen.errorRed.withOpacity(0.3)),
                 ),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Icon(
                       Icons.info_outline_rounded,
-                      color: AppColors.error,
-                      size: 18,
+                      color: DrawScreen.errorRed,
+                      size: 20,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     const Text(
                       'Nenhum participante inscrito',
                       style: TextStyle(
-                        color: AppColors.error,
-                        fontSize: 13,
+                        color: DrawScreen.errorRed,
+                        fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -481,9 +575,7 @@ class _DrawScreenState extends ConsumerState<DrawScreen> {
           prize: state.raffle!.prize,
           requireConfirmation: state.isConfirming,
           confirmationTimeoutMinutes: state.raffle!.confirmationTimeoutMinutes,
-          onConfirm: state.isConfirming
-              ? null
-              : () => _confirmWinner(ref),
+          onConfirm: state.isConfirming ? null : () => _confirmWinner(ref),
           onRedraw: () => _redraw(ref),
           onClose: () => _handleClose(context),
         ),
@@ -500,27 +592,34 @@ class _DrawScreenState extends ConsumerState<DrawScreen> {
           children: [
             // Confirmed badge
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
-                color: AppColors.success.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  colors: [
+                    DrawScreen.successGreen.withOpacity(0.2),
+                    DrawScreen.successGreen.withOpacity(0.1),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: DrawScreen.successGreen.withOpacity(0.3)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.check_circle, color: AppColors.success, size: 20),
-                  const SizedBox(width: 8),
+                  const Icon(Icons.check_circle_rounded, color: DrawScreen.successGreen, size: 22),
+                  const SizedBox(width: 10),
                   const Text(
                     'CONFIRMADO',
                     style: TextStyle(
-                      color: AppColors.success,
+                      color: DrawScreen.successGreen,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 2,
+                      fontSize: 14,
                     ),
                   ),
                 ],
               ),
-            ).animate().fadeIn(),
+            ).animate().fadeIn().scale(begin: const Offset(0.8, 0.8)),
 
             const SizedBox(height: 24),
 
@@ -543,48 +642,109 @@ class _DrawScreenState extends ConsumerState<DrawScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(28),
               decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
+                color: DrawScreen.errorRed.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: DrawScreen.errorRed.withOpacity(0.3)),
               ),
               child: const Icon(
-                Icons.timer_off,
-                size: 64,
-                color: AppColors.error,
+                Icons.timer_off_rounded,
+                size: 72,
+                color: DrawScreen.errorRed,
               ),
-            ),
-            const SizedBox(height: 24),
+            ).animate().fadeIn().scale(begin: const Offset(0.8, 0.8)),
+            const SizedBox(height: 28),
             const Text(
               'Tempo Esgotado',
               style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
+                color: DrawScreen.textPrimary,
+                fontSize: 26,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'O ganhador não confirmou presença a tempo',
+            const SizedBox(height: 12),
+            const Text(
+              'O ganhador nao confirmou presenca a tempo',
               style: TextStyle(
-                color: AppColors.mutedForegroundDark,
-                fontSize: 14,
+                color: DrawScreen.textSecondary,
+                fontSize: 15,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: () => _redraw(ref),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Sortear Novamente'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+            const SizedBox(height: 36),
+            Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [DrawScreen.primaryPurple, DrawScreen.primaryPink],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: DrawScreen.primaryPurple.withOpacity(0.4),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: ElevatedButton.icon(
+                onPressed: () => _redraw(ref),
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Sortear Novamente'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  shadowColor: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildNotFound(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: DrawScreen.cardBg,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.search_off_rounded,
+              size: 48,
+              color: DrawScreen.textTertiary,
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Sorteio nao encontrado',
+            style: TextStyle(
+              color: DrawScreen.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 24),
+          TextButton.icon(
+            onPressed: () => context.pop(),
+            icon: const Icon(Icons.arrow_back),
+            label: const Text('Voltar'),
+            style: TextButton.styleFrom(
+              foregroundColor: DrawScreen.primaryPurple,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -599,30 +759,44 @@ class _DrawScreenState extends ConsumerState<DrawScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
+                color: DrawScreen.errorRed.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(24),
               ),
               child: const Icon(
-                Icons.error_outline,
+                Icons.error_outline_rounded,
                 size: 64,
-                color: AppColors.error,
+                color: DrawScreen.errorRed,
               ),
             ),
             const SizedBox(height: 24),
             Text(
               error,
               style: const TextStyle(
-                color: Colors.white,
+                color: DrawScreen.textPrimary,
                 fontSize: 16,
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () =>
-                  ref.read(drawProvider(widget.raffleId).notifier).loadRaffle(),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Tentar novamente'),
+            Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [DrawScreen.primaryPurple, DrawScreen.primaryPink],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ElevatedButton.icon(
+                onPressed: () =>
+                    ref.read(drawProvider(widget.raffleId).notifier).loadRaffle(),
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Tentar novamente'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  shadowColor: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              ),
             ),
           ],
         ),
@@ -633,14 +807,11 @@ class _DrawScreenState extends ConsumerState<DrawScreen> {
   void _startDraw(WidgetRef ref) {
     final notifier = ref.read(drawProvider(widget.raffleId).notifier);
     notifier.startSpinning();
-
-    // Perform the actual draw and then show animation
     notifier.performDraw();
   }
 
   void _confirmWinner(WidgetRef ref) {
     ref.read(drawProvider(widget.raffleId).notifier).confirmWinner();
-    // Refresh raffle list
     ref.read(raffleListProvider.notifier).refresh();
   }
 
@@ -649,7 +820,6 @@ class _DrawScreenState extends ConsumerState<DrawScreen> {
   }
 
   void _handleClose(BuildContext context) {
-    // Refresh raffle detail before closing
     ref.read(raffleDetailProvider(widget.raffleId).notifier).refresh();
     context.pop();
   }

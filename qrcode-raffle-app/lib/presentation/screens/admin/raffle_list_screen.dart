@@ -7,11 +7,37 @@ import '../../providers/raffle_provider.dart';
 import '../../widgets/raffle_card_widget.dart';
 import '../shared/confirmation_screen.dart';
 
-class RaffleListScreen extends ConsumerWidget {
+class RaffleListScreen extends ConsumerStatefulWidget {
   const RaffleListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RaffleListScreen> createState() => _RaffleListScreenState();
+}
+
+class _RaffleListScreenState extends ConsumerState<RaffleListScreen>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh data when app comes back to foreground
+      ref.read(raffleListProvider.notifier).refresh();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(raffleListProvider);
 
     ref.listen<RaffleListState>(
@@ -56,7 +82,11 @@ class RaffleListScreen extends ConsumerWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/admin/raffles/new'),
+        onPressed: () async {
+          await context.push('/admin/raffles/new');
+          // Refresh when returning from create screen
+          ref.read(raffleListProvider.notifier).refresh();
+        },
         icon: const Icon(Icons.add),
         label: const Text('Novo Sorteio'),
         backgroundColor: AppColors.primary,
