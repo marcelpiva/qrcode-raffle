@@ -5,6 +5,22 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.0.4] - 2025-12-05
+
+### Melhorado
+
+- **Página de detalhes do sorteio mobile** - Layout responsivo para `/admin/[id]`
+  - Header com título truncado e badges em wrap
+  - Card do vencedor com layout empilhado no mobile
+  - Histórico de ausentes com layout compacto
+  - Info do prêmio em grid 3 colunas
+  - Tabela de participantes: email oculto no mobile (mostrado abaixo do nome)
+
+- **QR Code responsivo** - Corrigido scroll horizontal no mobile
+  - Tamanho do QR code adaptativo (180px mobile, 256px desktop)
+  - Botões menores com texto reduzido no mobile ("Copiar", "PNG")
+  - URL display com fonte menor no mobile
+
 ## [2.0.3] - 2025-12-05
 
 ### Melhorado

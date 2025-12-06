@@ -309,41 +309,43 @@ export default function RaffleDetails({ params }: { params: Promise<{ id: string
   const registerUrl = `${origin}/register/${raffle.id}`
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
+    <div className="space-y-4 sm:space-y-6">
+      {/* Header */}
+      <div className="flex items-start gap-2 sm:gap-4">
         <Link href={raffle.talk ? `/admin/events/${raffle.talk.track.eventId}` : raffle.event ? `/admin/events/${raffle.event.id}` : '/admin'}>
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-5 w-5" />
+          <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10 shrink-0">
+            <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
         </Link>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold">{raffle.name}</h1>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl sm:text-3xl font-bold truncate">{raffle.name}</h1>
             {getStatusBadge(effectiveStatus!)}
             {expiredByTimeout && (
-              <Badge variant="outline" className="text-orange-600 border-orange-500">
+              <Badge variant="outline" className="text-orange-600 border-orange-500 text-[10px] sm:text-xs">
                 <Clock className="h-3 w-3 mr-1" />
-                Tempo esgotado
+                <span className="hidden sm:inline">Tempo esgotado</span>
+                <span className="sm:hidden">Expirado</span>
               </Badge>
             )}
           </div>
-          <p className="text-muted-foreground">{raffle.description || 'Sem descricao'}</p>
+          <p className="text-sm sm:text-base text-muted-foreground line-clamp-1">{raffle.description || 'Sem descricao'}</p>
           {raffle.talk && (
-            <p className="text-sm text-muted-foreground">
-              Palestra: {raffle.talk.title} (Trilha: {raffle.talk.track.title})
+            <p className="text-xs sm:text-sm text-muted-foreground truncate">
+              <span className="hidden sm:inline">Palestra: </span>{raffle.talk.title}
             </p>
           )}
           {raffle.event && !raffle.talk && (
-            <p className="text-sm text-muted-foreground">
-              Evento: {raffle.event.name}
+            <p className="text-xs sm:text-sm text-muted-foreground truncate">
+              <span className="hidden sm:inline">Evento: </span>{raffle.event.name}
             </p>
           )}
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
         {/* QR Code Section */}
-        <div className="lg:col-span-1 space-y-4">
+        <div className="lg:col-span-1 space-y-3 sm:space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">QR Code</CardTitle>
@@ -528,43 +530,44 @@ export default function RaffleDetails({ params }: { params: Promise<{ id: string
           {/* Winner Card */}
           {raffle.winner && (
             <Card className="border-primary/50 bg-gradient-to-r from-primary/5 to-secondary/5">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-secondary">
-                      <Trophy className="h-7 w-7 text-white" />
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <div className="flex h-10 w-10 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-secondary shrink-0">
+                      <Trophy className="h-5 w-5 sm:h-7 sm:w-7 text-white" />
                     </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">
-                        {raffle.status === 'drawn' ? 'Vencedor Confirmado' : 'Sorteado - Aguardando Confirmacao'}
+                    <div className="min-w-0">
+                      <p className="text-xs sm:text-sm text-muted-foreground">
+                        {raffle.status === 'drawn' ? 'Vencedor Confirmado' : 'Aguardando Confirmacao'}
                       </p>
-                      <p className="text-2xl font-bold">{raffle.winner.name}</p>
-                      <p className="text-sm text-muted-foreground">{raffle.winner.email}</p>
+                      <p className="text-lg sm:text-2xl font-bold truncate">{raffle.winner.name}</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground truncate">{raffle.winner.email}</p>
                     </div>
                   </div>
                   {hasPendingWinner && (
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <Button
                         onClick={handleConfirmWinner}
                         disabled={isConfirming}
-                        className="bg-green-600 hover:bg-green-700"
+                        className="bg-green-600 hover:bg-green-700 text-xs sm:text-sm"
+                        size="sm"
                       >
                         {isConfirming ? (
                           <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                         ) : (
                           <Check className="h-4 w-4 mr-2" />
                         )}
-                        Confirmar Presenca
+                        Confirmar
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="outline" disabled={isRedrawing}>
+                          <Button variant="outline" disabled={isRedrawing} size="sm" className="text-xs sm:text-sm">
                             {isRedrawing ? (
                               <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                             ) : (
                               <Shuffle className="h-4 w-4 mr-2" />
                             )}
-                            Sortear Novamente
+                            Re-sortear
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
@@ -588,13 +591,13 @@ export default function RaffleDetails({ params }: { params: Promise<{ id: string
                   {raffle.status === 'drawn' && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="outline" disabled={isReopening}>
+                        <Button variant="outline" disabled={isReopening} size="sm" className="text-xs sm:text-sm">
                           {isReopening ? (
                             <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                           ) : (
                             <RotateCcw className="h-4 w-4 mr-2" />
                           )}
-                          Reabrir Sorteio
+                          Reabrir
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
@@ -622,29 +625,29 @@ export default function RaffleDetails({ params }: { params: Promise<{ id: string
           {/* Absent Draws History */}
           {absentDraws.length > 0 && (
             <Card className="border-yellow-500/50 bg-yellow-500/5">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2 text-yellow-700">
-                  <UserX className="h-5 w-5" />
-                  Sorteados Ausentes ({absentDraws.length})
+              <CardHeader className="pb-3 px-4 sm:px-6">
+                <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-yellow-700">
+                  <UserX className="h-4 w-4 sm:h-5 sm:w-5" />
+                  Ausentes ({absentDraws.length})
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-4 sm:px-6">
                 <div className="space-y-2">
                   {absentDraws.map((draw) => (
                     <div
                       key={draw.id}
-                      className="flex items-center justify-between p-3 bg-yellow-500/10 rounded-lg"
+                      className="flex items-center justify-between gap-2 p-2 sm:p-3 bg-yellow-500/10 rounded-lg"
                     >
-                      <div className="flex items-center gap-3">
-                        <Badge variant="outline" className="text-yellow-700 border-yellow-500">
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                        <Badge variant="outline" className="text-yellow-700 border-yellow-500 text-xs shrink-0">
                           #{draw.drawNumber}
                         </Badge>
-                        <div>
-                          <p className="font-medium">{draw.participant.name}</p>
-                          <p className="text-sm text-muted-foreground">{draw.participant.email}</p>
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">{draw.participant.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{draw.participant.email}</p>
                         </div>
                       </div>
-                      <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-700">
+                      <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-700 text-xs shrink-0 hidden sm:inline-flex">
                         Ausente
                       </Badge>
                     </div>
@@ -656,27 +659,27 @@ export default function RaffleDetails({ params }: { params: Promise<{ id: string
 
           {/* Prize Info */}
           <Card>
-            <CardContent className="p-6">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="flex items-center gap-3">
-                  <Trophy className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Premio</p>
-                    <p className="font-semibold">{raffle.prize}</p>
+            <CardContent className="p-4 sm:p-6">
+              <div className="grid grid-cols-3 gap-3 sm:gap-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <Trophy className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm text-muted-foreground">Premio</p>
+                    <p className="font-semibold text-sm sm:text-base truncate">{raffle.prize}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Users className="h-5 w-5 text-primary" />
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Participantes</p>
-                    <p className="font-semibold">{raffle._count.participants}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Participantes</p>
+                    <p className="font-semibold text-sm sm:text-base">{raffle._count.participants}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Clock className="h-5 w-5 text-primary" />
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Criado em</p>
-                    <p className="font-semibold">
+                    <p className="text-xs sm:text-sm text-muted-foreground">Criado</p>
+                    <p className="font-semibold text-sm sm:text-base">
                       {new Date(raffle.createdAt).toLocaleDateString('pt-BR')}
                     </p>
                   </div>
@@ -687,10 +690,10 @@ export default function RaffleDetails({ params }: { params: Promise<{ id: string
 
           {/* Participants List */}
           <Card>
-            <CardHeader>
+            <CardHeader className="px-4 sm:px-6">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Users className="h-5 w-5" />
+                <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                  <Users className="h-4 w-4 sm:h-5 sm:w-5" />
                   Participantes ({raffle.participants.length})
                 </CardTitle>
               </div>
@@ -698,15 +701,15 @@ export default function RaffleDetails({ params }: { params: Promise<{ id: string
                 <div className="relative mt-2">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    placeholder="Buscar por nome ou email..."
+                    placeholder="Buscar..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9"
+                    className="pl-9 h-9 text-sm"
                   />
                 </div>
               )}
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 sm:px-6">
               {raffle.participants.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   Nenhum participante ainda
@@ -730,36 +733,43 @@ export default function RaffleDetails({ params }: { params: Promise<{ id: string
                             Nenhum participante encontrado para &quot;{searchTerm}&quot;
                           </div>
                         ) : (
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Nome</TableHead>
-                                <TableHead>Email</TableHead>
-                                <TableHead>Data</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {filteredParticipants.map((p) => (
-                                <TableRow key={p.id} className={raffle.winner?.id === p.id ? 'bg-primary/5' : ''}>
-                                  <TableCell className="font-medium">
-                                    {p.name}
-                                    {raffle.winner?.id === p.id && (
-                                      <Trophy className="inline h-4 w-4 ml-2 text-primary" />
-                                    )}
-                                  </TableCell>
-                                  <TableCell>
-                                    <span className="flex items-center gap-1">
-                                      <Mail className="h-3 w-3" />
-                                      {p.email}
-                                    </span>
-                                  </TableCell>
-                                  <TableCell>
-                                    {new Date(p.createdAt).toLocaleDateString('pt-BR')}
-                                  </TableCell>
+                          <div className="overflow-x-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="min-w-[120px]">Nome</TableHead>
+                                  <TableHead className="hidden sm:table-cell">Email</TableHead>
+                                  <TableHead className="text-right">Data</TableHead>
                                 </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
+                              </TableHeader>
+                              <TableBody>
+                                {filteredParticipants.map((p) => (
+                                  <TableRow key={p.id} className={raffle.winner?.id === p.id ? 'bg-primary/5' : ''}>
+                                    <TableCell className="font-medium">
+                                      <div className="flex items-center gap-1">
+                                        <span className="truncate max-w-[150px] sm:max-w-none">{p.name}</span>
+                                        {raffle.winner?.id === p.id && (
+                                          <Trophy className="h-4 w-4 text-primary shrink-0" />
+                                        )}
+                                      </div>
+                                      <span className="sm:hidden text-xs text-muted-foreground truncate block max-w-[180px]">
+                                        {p.email}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell className="hidden sm:table-cell">
+                                      <span className="flex items-center gap-1">
+                                        <Mail className="h-3 w-3 shrink-0" />
+                                        <span className="truncate max-w-[200px]">{p.email}</span>
+                                      </span>
+                                    </TableCell>
+                                    <TableCell className="text-right whitespace-nowrap text-xs sm:text-sm">
+                                      {new Date(p.createdAt).toLocaleDateString('pt-BR')}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
                         )}
                       </>
                     )
