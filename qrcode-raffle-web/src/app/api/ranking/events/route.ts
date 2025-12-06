@@ -8,16 +8,14 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const eventIds = searchParams.get('eventIds')?.split(',').filter(Boolean) || []
 
-    // Get all available events with track counts (attendance via talks)
+    // Get all available events with track counts
     const allEvents = await prisma.event.findMany({
       orderBy: { startDate: 'desc' },
       include: {
         tracks: {
           include: {
             talks: {
-              include: {
-                _count: { select: { attendances: true } }
-              }
+              select: { id: true }
             }
           }
         },
@@ -25,10 +23,39 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Helper to calculate total attendances for an event
-    const calcEventAttendances = (event: typeof allEvents[0]) =>
-      event.tracks.reduce((sum, t) =>
-        sum + t.talks.reduce((talkSum, talk) => talkSum + talk._count.attendances, 0), 0)
+    // Get all talk IDs to fetch attendances for unique email counting
+    const allTalkIds = allEvents.flatMap(e =>
+      e.tracks.flatMap(t => t.talks.map(talk => talk.id))
+    )
+
+    // Fetch all attendances
+    const allAttendances = await prisma.talkAttendance.findMany({
+      where: { talkId: { in: allTalkIds } },
+      select: { email: true, talkId: true }
+    })
+
+    // Create a map from talkId to eventId
+    const talkToEventMap = new Map<string, string>()
+    for (const event of allEvents) {
+      for (const track of event.tracks) {
+        for (const talk of track.talks) {
+          talkToEventMap.set(talk.id, event.id)
+        }
+      }
+    }
+
+    // Count unique emails per event
+    const eventUniqueEmails = new Map<string, Set<string>>()
+    for (const a of allAttendances) {
+      const eventId = talkToEventMap.get(a.talkId)
+      if (!eventId) continue
+
+      const normalizedEmail = normalizeEmail(a.email)
+      if (!eventUniqueEmails.has(eventId)) {
+        eventUniqueEmails.set(eventId, new Set())
+      }
+      eventUniqueEmails.get(eventId)!.add(normalizedEmail)
+    }
 
     if (eventIds.length === 0) {
       return NextResponse.json({
@@ -38,7 +65,7 @@ export async function GET(request: NextRequest) {
           startDate: e.startDate.toISOString(),
           endDate: e.endDate.toISOString(),
           trackCount: e._count.tracks,
-          totalAttendances: calcEventAttendances(e)
+          totalAttendances: eventUniqueEmails.get(e.id)?.size || 0
         })),
         selectedEvents: [],
         ranking: []
@@ -53,9 +80,7 @@ export async function GET(request: NextRequest) {
         tracks: {
           include: {
             talks: {
-              include: {
-                _count: { select: { attendances: true } }
-              }
+              select: { id: true }
             }
           }
         },
@@ -142,13 +167,13 @@ export async function GET(request: NextRequest) {
         startDate: e.startDate.toISOString(),
         endDate: e.endDate.toISOString(),
         trackCount: e._count.tracks,
-        totalAttendances: calcEventAttendances(e)
+        totalAttendances: eventUniqueEmails.get(e.id)?.size || 0
       })),
       selectedEvents: selectedEvents.map(e => ({
         id: e.id,
         name: e.name,
         trackCount: e._count.tracks,
-        totalAttendances: calcEventAttendances(e)
+        totalAttendances: eventUniqueEmails.get(e.id)?.size || 0
       })),
       ranking
     })

@@ -5,6 +5,16 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.0.1] - 2025-12-05
+
+### Corrigido
+
+- **Contagem de presenças únicas por e-mail** - Ranking de trilhas e eventos agora conta presenças únicas
+  - Antes: se uma pessoa fazia check-in em 5 palestras da mesma trilha, contava como 5 presenças
+  - Agora: conta como 1 presença única (por e-mail normalizado)
+  - Afeta `/api/ranking/tracks` e `/api/ranking/events`
+  - Normalização de e-mail já aplicada (ignora maiúsculas, `+tag`, etc.)
+
 ## [2.0.0] - 2025-12-05
 
 ### Adicionado

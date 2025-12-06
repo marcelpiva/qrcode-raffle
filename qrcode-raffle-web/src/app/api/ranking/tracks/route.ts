@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const trackIds = searchParams.get('trackIds')?.split(',').filter(Boolean) || []
 
-    // Get all available events with tracks and their talk attendance counts
+    // Get all available events with tracks and their talks
     const allEvents = await prisma.event.findMany({
       orderBy: { startDate: 'desc' },
       include: {
@@ -16,16 +16,48 @@ export async function GET(request: NextRequest) {
           orderBy: { startDate: 'asc' },
           include: {
             talks: {
-              include: {
-                _count: { select: { attendances: true } }
-              }
+              select: { id: true }
             }
           }
         }
       }
     })
 
-    // Calculate attendance count per track (sum of all talk attendances)
+    // Get all talk IDs to fetch attendances
+    const allTalkIds = allEvents.flatMap(e =>
+      e.tracks.flatMap(t => t.talks.map(talk => talk.id))
+    )
+
+    // Fetch all attendances for all talks
+    const allAttendances = await prisma.talkAttendance.findMany({
+      where: { talkId: { in: allTalkIds } },
+      select: { email: true, talkId: true }
+    })
+
+    // Create a map from talkId to trackId
+    const talkToTrackMap = new Map<string, string>()
+    for (const event of allEvents) {
+      for (const track of event.tracks) {
+        for (const talk of track.talks) {
+          talkToTrackMap.set(talk.id, track.id)
+        }
+      }
+    }
+
+    // Count unique emails per track
+    const trackUniqueEmails = new Map<string, Set<string>>()
+    for (const a of allAttendances) {
+      const trackId = talkToTrackMap.get(a.talkId)
+      if (!trackId) continue
+
+      const normalizedEmail = normalizeEmail(a.email)
+      if (!trackUniqueEmails.has(trackId)) {
+        trackUniqueEmails.set(trackId, new Set())
+      }
+      trackUniqueEmails.get(trackId)!.add(normalizedEmail)
+    }
+
+    // Calculate attendance count per track (unique emails)
     const eventsWithCounts = allEvents.map(e => ({
       id: e.id,
       name: e.name,
@@ -36,7 +68,7 @@ export async function GET(request: NextRequest) {
         title: t.title,
         startDate: t.startDate.toISOString(),
         endDate: t.endDate.toISOString(),
-        attendanceCount: t.talks.reduce((sum, talk) => sum + talk._count.attendances, 0)
+        attendanceCount: trackUniqueEmails.get(t.id)?.size || 0
       }))
     }))
 
@@ -55,9 +87,7 @@ export async function GET(request: NextRequest) {
       include: {
         event: { select: { id: true, name: true } },
         talks: {
-          include: {
-            _count: { select: { attendances: true } }
-          }
+          select: { id: true }
         }
       }
     })
@@ -124,7 +154,7 @@ export async function GET(request: NextRequest) {
         title: t.title,
         eventId: t.event.id,
         eventName: t.event.name,
-        attendanceCount: t.talks.reduce((sum, talk) => sum + talk._count.attendances, 0)
+        attendanceCount: trackUniqueEmails.get(t.id)?.size || 0
       })),
       ranking
     })

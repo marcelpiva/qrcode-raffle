@@ -8,7 +8,7 @@ Sistema de sorteios com QR Code para eventos.
 - **Sistema de Eventos** - Criar e gerenciar eventos com múltiplas trilhas e palestras
 - **Trilhas (Tracks)** - Organizar palestras por tema ou sala
 - **Palestras (Talks)** - Cadastrar palestras com horários de início e fim
-- **Presenças (Attendances)** - Registrar presenças via QR Code com duração
+- **Presenças (Attendances)** - Registrar presenças via QR Code com duração (contagem única por e-mail)
 - **Timeline Visual** - Visualização cronológica do evento
 - **Import CSV** - Importação em massa de trilhas, palestras e presenças
 
