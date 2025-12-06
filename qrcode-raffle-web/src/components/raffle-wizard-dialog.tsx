@@ -288,7 +288,7 @@ export function RaffleWizardDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader className="pb-2">
           <DialogTitle className="flex items-center gap-2">
             <Trophy className="h-5 w-5 text-amber-500" />
@@ -415,17 +415,17 @@ export function RaffleWizardDialog({
                     <Clock className="h-3 w-3" />
                     Tempo mínimo por palestra
                   </Label>
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-5 gap-1.5">
                     {[0, 15, 30, 45, 60].map((mins) => (
                       <Button
                         key={mins}
                         type="button"
                         variant={minDurationPerTalk === mins ? "default" : "outline"}
                         size="sm"
-                        className="flex-1 text-xs"
+                        className="text-[10px] sm:text-xs px-1 sm:px-2 h-8"
                         onClick={() => setMinDurationPerTalk(mins)}
                       >
-                        {mins === 0 ? 'Sem filtro' : `${mins}min`}
+                        {mins === 0 ? 'Todos' : `${mins}m`}
                       </Button>
                     ))}
                   </div>
@@ -440,14 +440,14 @@ export function RaffleWizardDialog({
                     <Mic2 className="h-3 w-3" />
                     Número mínimo de palestras
                   </Label>
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-5 gap-1.5">
                     {[1, 2, 3, 4, 5].map((count) => (
                       <Button
                         key={count}
                         type="button"
                         variant={minTalksCount === count ? "default" : "outline"}
                         size="sm"
-                        className="flex-1 text-xs"
+                        className="text-xs px-2 h-8"
                         onClick={() => setMinTalksCount(count)}
                         disabled={count > totalTalksWithAttendance && totalTalksWithAttendance > 0}
                       >
@@ -479,19 +479,19 @@ export function RaffleWizardDialog({
 
                 {/* Eligible count */}
                 <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-medium">Participantes elegíveis</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Users className="h-4 w-4 text-primary shrink-0" />
+                      <span className="text-xs sm:text-sm font-medium truncate">Participantes elegíveis</span>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right shrink-0">
                       {loadingEligible ? (
                         <Loader2 className="h-5 w-5 animate-spin text-primary" />
                       ) : (
                         <>
-                          <span className="text-lg font-bold text-primary">{eligibleCount}</span>
-                          <span className="text-xs text-muted-foreground ml-1">
-                            de {totalUniqueCount}
+                          <span className="text-base sm:text-lg font-bold text-primary">{eligibleCount}</span>
+                          <span className="text-[10px] sm:text-xs text-muted-foreground ml-1">
+                            /{totalUniqueCount}
                           </span>
                         </>
                       )}
@@ -499,28 +499,29 @@ export function RaffleWizardDialog({
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-1">
                     {minDurationPerTalk > 0 || minTalksCount > 1 || allowedDomain
-                      ? `Participantes que assistiram ≥${minTalksCount} palestra${minTalksCount > 1 ? 's' : ''} por ≥${minDurationPerTalk || 0}min${allowedDomain ? ` @${allowedDomain}` : ''}`
+                      ? `≥${minTalksCount} palestra${minTalksCount > 1 ? 's' : ''} × ≥${minDurationPerTalk || 0}min${allowedDomain ? ` @${allowedDomain}` : ''}`
                       : 'Todos os participantes únicos do evento'
                     }
                   </p>
                 </div>
 
                 {/* Allow link registration */}
-                <div className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30">
+                <div className="flex items-start gap-2 p-2 sm:p-3 rounded-lg border bg-muted/30">
                   <Checkbox
                     id="allowLinkRegistration"
                     checked={allowLinkRegistration}
                     onCheckedChange={(checked) => setAllowLinkRegistration(checked === true)}
+                    className="mt-0.5"
                   />
-                  <div className="flex-1">
-                    <Label htmlFor="allowLinkRegistration" className="text-xs font-medium flex items-center gap-2 cursor-pointer">
-                      <Link className="h-3 w-3" />
-                      Permitir inscrições por link
+                  <div className="flex-1 min-w-0">
+                    <Label htmlFor="allowLinkRegistration" className="text-xs font-medium flex items-center gap-1.5 cursor-pointer">
+                      <Link className="h-3 w-3 shrink-0" />
+                      <span className="truncate">Permitir inscrições por link</span>
                     </Label>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
                       {allowLinkRegistration
-                        ? 'Participantes podem se inscrever via QR Code/link além dos elegíveis automáticos'
-                        : 'Apenas participantes elegíveis (presenças) serão incluídos automaticamente'
+                        ? 'Inscrição via QR Code permitida'
+                        : 'Apenas presenças elegíveis'
                       }
                     </p>
                   </div>
@@ -547,10 +548,10 @@ export function RaffleWizardDialog({
                 </div>
 
                 {/* Talks list */}
-                <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-[200px] overflow-y-auto overflow-x-hidden">
                   {filteredTracks.map((track) => (
                     <div key={track.id}>
-                      <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium mb-1 px-1 sticky top-0 bg-background py-0.5">
+                      <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium mb-1 px-1 sticky top-0 bg-background py-0.5 truncate">
                         {track.title}
                       </div>
                       <div className="space-y-0.5">
@@ -558,28 +559,26 @@ export function RaffleWizardDialog({
                           <div
                             key={talk.id}
                             className={cn(
-                              "p-2 rounded-md border cursor-pointer transition-all",
+                              "p-2 rounded-md border cursor-pointer transition-all overflow-hidden",
                               selectedTalkId === talk.id
                                 ? "border-primary bg-primary/5"
                                 : "hover:border-primary/50"
                             )}
                             onClick={() => setSelectedTalkId(talk.id)}
                           >
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <div className={cn(
-                                  "w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors",
-                                  selectedTalkId === talk.id
-                                    ? "border-primary bg-primary"
-                                    : "border-muted-foreground/30"
-                                )}>
-                                  {selectedTalkId === talk.id && (
-                                    <div className="w-1 h-1 rounded-full bg-white" />
-                                  )}
-                                </div>
-                                <p className="text-xs font-medium truncate">{talk.title}</p>
+                            <div className="flex items-center gap-2">
+                              <div className={cn(
+                                "w-3.5 h-3.5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors",
+                                selectedTalkId === talk.id
+                                  ? "border-primary bg-primary"
+                                  : "border-muted-foreground/30"
+                              )}>
+                                {selectedTalkId === talk.id && (
+                                  <div className="w-1 h-1 rounded-full bg-white" />
+                                )}
                               </div>
-                              <Badge variant="secondary" className="text-[10px] flex-shrink-0">
+                              <p className="text-xs font-medium truncate flex-1 min-w-0">{talk.title}</p>
+                              <Badge variant="secondary" className="text-[10px] shrink-0">
                                 {talk.attendanceCount}
                               </Badge>
                             </div>
@@ -596,18 +595,18 @@ export function RaffleWizardDialog({
                 </div>
 
                 {/* Domain filter for Talk */}
-                <div className="pt-2 border-t">
+                <div className="pt-2 border-t space-y-1.5">
                   <div className="flex items-center gap-2">
-                    <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                    <Label className="text-xs flex-1">Filtrar por domínio de email</Label>
-                    <Input
-                      placeholder="ex: nava.com.br"
-                      value={allowedDomain}
-                      onChange={(e) => setAllowedDomain(e.target.value)}
-                      className="h-7 w-32 text-xs"
-                    />
+                    <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <Label className="text-xs">Filtrar por domínio</Label>
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-1 ml-5">
+                  <Input
+                    placeholder="ex: nava.com.br"
+                    value={allowedDomain}
+                    onChange={(e) => setAllowedDomain(e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
                     Deixe vazio para permitir todos
                   </p>
                 </div>
@@ -679,26 +678,26 @@ export function RaffleWizardDialog({
                   />
                 </div>
                 {enableSchedule && (
-                  <div className="flex items-center gap-2 ml-5">
+                  <div className="flex items-center gap-1.5 sm:gap-2 ml-5">
                     <div className="flex items-center gap-1">
-                      <Label className="text-[10px] text-muted-foreground">Início</Label>
+                      <Label className="text-[10px] text-muted-foreground hidden sm:block">Início</Label>
                       <Input
                         type="time"
                         value={startsAt}
                         onChange={(e) => setStartsAt(e.target.value)}
                         disabled={saving}
-                        className="h-7 w-24 text-xs"
+                        className="h-7 w-[90px] sm:w-24 text-xs"
                       />
                     </div>
-                    <span className="text-muted-foreground">→</span>
+                    <span className="text-muted-foreground text-xs">→</span>
                     <div className="flex items-center gap-1">
-                      <Label className="text-[10px] text-muted-foreground">Fim</Label>
+                      <Label className="text-[10px] text-muted-foreground hidden sm:block">Fim</Label>
                       <Input
                         type="time"
                         value={endsAt}
                         onChange={(e) => setEndsAt(e.target.value)}
                         disabled={saving}
-                        className="h-7 w-24 text-xs"
+                        className="h-7 w-[90px] sm:w-24 text-xs"
                       />
                     </div>
                   </div>

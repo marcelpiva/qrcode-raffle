@@ -317,48 +317,42 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
+      <div className="space-y-2">
+        {/* Linha 1: Voltar + Título + Botões */}
+        <div className="flex items-center justify-between gap-1">
+          <div className="flex items-center gap-1 min-w-0">
             <Link href="/admin">
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
-            <h1 className="text-3xl font-bold">{event.name}</h1>
+            <h1 className="text-base sm:text-2xl lg:text-3xl font-bold truncate">{event.name}</h1>
           </div>
-          <div className="flex items-center gap-4 text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              <span>{formatDateRange(event.startDate, event.endDate)}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Layers className="h-4 w-4" />
-              <span>{event.trackCount} {event.trackCount === 1 ? 'trilha' : 'trilhas'}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              <span>{event.uniqueAttendeeCount} {event.uniqueAttendeeCount === 1 ? 'participante' : 'participantes'}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Trophy className="h-4 w-4" />
-              <span>{event.raffleCount} {event.raffleCount === 1 ? 'sorteio' : 'sorteios'}</span>
-            </div>
+          <div className="flex gap-1 shrink-0">
+            <Button size="sm" className="h-8 px-2 sm:px-3" onClick={handleOpenGeneralRaffle}>
+              <Trophy className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Novo Sorteio</span>
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 px-2 sm:px-3" onClick={() => setEditDialogOpen(true)}>
+              <Edit className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Editar</span>
+            </Button>
           </div>
-          {event.speakers && (
-            <p className="text-sm text-muted-foreground">{event.speakers}</p>
-          )}
         </div>
-        <div className="flex gap-2">
-          <Button onClick={handleOpenGeneralRaffle}>
-            <Trophy className="h-4 w-4 mr-2" />
-            Novo Sorteio
-          </Button>
-          <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
-            <Edit className="h-4 w-4 mr-2" />
-            Editar
-          </Button>
+
+        {/* Linha 2: Data e Stats - sempre visíveis */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground ml-9">
+          <span>{formatDateRange(event.startDate, event.endDate)}</span>
+          <span>•</span>
+          <Layers className="h-3 w-3" /><span>{event.trackCount}</span>
+          <Users className="h-3 w-3 ml-1" /><span>{event.uniqueAttendeeCount}</span>
+          <Trophy className="h-3 w-3 ml-1" /><span>{event.raffleCount}</span>
         </div>
+
+        {/* Linha 3: Palestrantes - truncado no mobile */}
+        {event.speakers && (
+          <p className="text-xs text-muted-foreground line-clamp-1 ml-9">{event.speakers}</p>
+        )}
       </div>
 
       {/* Sorteios do Evento (nível evento) - destacados */}
@@ -438,10 +432,10 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
       {/* Trilhas Section */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Trilhas</h2>
-          <Button onClick={() => setTrackDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Trilha
+          <h2 className="text-lg sm:text-xl font-semibold">Trilhas</h2>
+          <Button size="sm" className="sm:size-default" onClick={() => setTrackDialogOpen(true)}>
+            <Plus className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Nova Trilha</span>
           </Button>
         </div>
 
@@ -465,63 +459,40 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
           <div className="space-y-4">
             {event.tracks.map((track) => (
               <Card key={track.id} className="overflow-hidden">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div
-                      className="flex-1 cursor-pointer"
-                      onClick={() => toggleTrackExpanded(track.id)}
-                    >
-                      <div className="flex items-center gap-2">
+                <CardHeader className="pb-3 px-3 sm:px-6">
+                  <div
+                    className="cursor-pointer"
+                    onClick={() => toggleTrackExpanded(track.id)}
+                  >
+                    {/* Linha 1: Chevron + Título + Botões */}
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-2 min-w-0">
                         {expandedTracks.has(track.id) ? (
-                          <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                          <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
                         ) : (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
                         )}
-                        <CardTitle className="text-lg">{track.title}</CardTitle>
+                        <span className="font-semibold text-sm sm:text-base truncate">{track.title}</span>
                       </div>
-                      <div className="flex items-center gap-4 mt-1 ml-6">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          <span>{formatDateRange(track.startDate, track.endDate)}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                          <Mic2 className="h-3 w-3" />
-                          <span>{track.talkCount} {track.talkCount === 1 ? 'palestra' : 'palestras'}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                          <Users className="h-3 w-3" />
-                          <span>{track.attendanceCount} {track.attendanceCount === 1 ? 'presença' : 'presenças'}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                          <Trophy className="h-3 w-3" />
-                          <span>{track.raffleCount} {track.raffleCount === 1 ? 'sorteio' : 'sorteios'}</span>
-                        </div>
+                      <div className="flex shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenNewTalk(track)} title="Nova Palestra">
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenEditTrack(track)}>
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleOpenDeleteTrack(track)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleOpenNewTalk(track)}
-                        title="Nova Palestra"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleOpenEditTrack(track)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={() => handleOpenDeleteTrack(track)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                    {/* Linha 2: Data e Stats */}
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 ml-6">
+                      <span>{formatDateRange(track.startDate, track.endDate)}</span>
+                      <span>•</span>
+                      <Mic2 className="h-3 w-3" /><span>{track.talkCount}</span>
+                      <Users className="h-3 w-3 ml-1" /><span>{track.attendanceCount}</span>
+                      <Trophy className="h-3 w-3 ml-1" /><span>{track.raffleCount}</span>
                     </div>
                   </div>
                 </CardHeader>
@@ -534,119 +505,114 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                         {track.talks.map((talk) => (
                           <div key={talk.id} className="border rounded-lg overflow-hidden">
                             <div
-                              className={`p-3 bg-muted/30 flex items-center justify-between ${talk.raffleCount > 0 ? 'cursor-pointer' : ''}`}
+                              className={`p-2 sm:p-3 bg-muted/30 ${talk.raffleCount > 0 ? 'cursor-pointer' : ''}`}
                               onClick={() => talk.raffleCount > 0 && toggleTalkExpanded(talk.id)}
                             >
-                              <div className="flex items-center gap-3">
-                                {talk.raffleCount > 0 ? (
-                                  expandedTalks.has(talk.id) ? (
-                                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                              {/* Mobile Layout */}
+                              <div className="sm:hidden">
+                                {/* Linha 1: Chevron + Título */}
+                                <div className="flex items-center gap-1.5">
+                                  {talk.raffleCount > 0 ? (
+                                    expandedTalks.has(talk.id) ? (
+                                      <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    ) : (
+                                      <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    )
                                   ) : (
-                                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                                  )
-                                ) : (
-                                  <div className="w-4" /> // Spacer para manter alinhamento
-                                )}
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <Mic2 className="h-4 w-4 text-primary" />
-                                    <span className="font-medium">{talk.title}</span>
-                                    {(talk.startTime || talk.endTime) && (
-                                      <Badge variant="outline" className="text-xs">
-                                        {formatShortDate(talk.startTime || talk.endTime)} {talk.startTime && talk.endTime
-                                          ? `${formatTime(talk.startTime)} - ${formatTime(talk.endTime)}`
-                                          : talk.startTime
-                                            ? formatTime(talk.startTime)
-                                            : `até ${formatTime(talk.endTime)}`
-                                        }
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  {talk.speaker && (
-                                    <p className="text-sm text-muted-foreground ml-6">{talk.speaker}</p>
+                                    <div className="w-4 shrink-0" />
                                   )}
+                                  <Mic2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                                  <span className="font-medium text-sm line-clamp-2">{talk.title}</span>
+                                </div>
+                                {/* Linha 2: Info compacta */}
+                                <div className="flex items-center justify-between mt-1.5 ml-6">
+                                  <div className="flex items-center gap-1 text-xs text-muted-foreground min-w-0">
+                                    {talk.speaker && <span className="truncate max-w-[80px]">{talk.speaker}</span>}
+                                    {talk.speaker && <span className="mx-0.5">•</span>}
+                                    {talk.startTime && <span className="shrink-0">{formatTime(talk.startTime)}</span>}
+                                    <span className="mx-0.5">•</span>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleOpenAttendance(talk) }}
+                                      className="flex items-center gap-0.5 hover:text-primary shrink-0"
+                                    >
+                                      <Users className="h-3 w-3" />{talk.attendanceCount}
+                                    </button>
+                                    <Trophy className="h-3 w-3 ml-1" /><span>{talk.raffleCount}</span>
+                                  </div>
+                                  {/* Botões compactos mobile */}
+                                  <div className="flex shrink-0 -mr-1" onClick={(e) => e.stopPropagation()}>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleCreateRaffleForTalk(talk.id)}>
+                                      <Gift className="h-3 w-3" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleOpenUpload(talk.id)}>
+                                      <Upload className="h-3 w-3" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleOpenEditTalk(talk, track)}>
+                                      <Edit className="h-3 w-3" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => handleOpenDeleteTalk(talk)}>
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleOpenAttendance(talk)
-                                  }}
-                                  className="flex items-center gap-1 hover:text-primary transition-colors"
-                                  title="Ver lista de presenças"
-                                >
-                                  <Users className="h-3 w-3" />
-                                  <span>{talk.attendanceCount}</span>
-                                </button>
-                                {talk.raffleCount > 0 ? (
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex items-center gap-1">
-                                      <Trophy className="h-3 w-3" />
-                                      <span>{talk.raffleCount}</span>
-                                    </div>
-                                    {talk.raffles.length > 0 && (
-                                      <>
-                                        <span className="text-muted-foreground/50">|</span>
-                                        <div className="flex items-center gap-1">
-                                          <Users className="h-3 w-3" />
-                                          <span>{talk.raffles.reduce((sum, r) => sum + r.participantCount, 0)}</span>
-                                        </div>
-                                        {talk.raffles.some(r => r.winner) && (
-                                          <>
-                                            <span className="text-muted-foreground/50">|</span>
-                                            <div className="flex items-center gap-1 text-amber-500">
-                                              <Trophy className="h-3 w-3" />
-                                              <span className="truncate max-w-[80px]" title={talk.raffles.find(r => r.winner)?.winner?.name}>
-                                                {talk.raffles.find(r => r.winner)?.winner?.name}
-                                              </span>
-                                            </div>
-                                          </>
-                                        )}
-                                      </>
+
+                              {/* Desktop Layout */}
+                              <div className="hidden sm:block">
+                                {/* Linha 1: Chevron + Título + Botões */}
+                                <div className="flex items-center justify-between gap-1">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    {talk.raffleCount > 0 ? (
+                                      expandedTalks.has(talk.id) ? (
+                                        <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+                                      ) : (
+                                        <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                                      )
+                                    ) : (
+                                      <div className="w-4 shrink-0" />
                                     )}
+                                    <Mic2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                                    <span className="font-medium text-sm truncate">{talk.title}</span>
                                   </div>
-                                ) : (
-                                  <div className="flex items-center gap-1 text-muted-foreground/50">
-                                    <Trophy className="h-3 w-3" />
-                                    <span>0</span>
+                                  <div className="flex shrink-0" onClick={(e) => e.stopPropagation()}>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCreateRaffleForTalk(talk.id)} title="Criar Sorteio">
+                                      <Gift className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenUpload(talk.id)} title="Importar Presenças">
+                                      <Upload className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenEditTalk(talk, track)}>
+                                      <Edit className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleOpenDeleteTalk(talk)}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
                                   </div>
-                                )}
-                                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={() => handleCreateRaffleForTalk(talk.id)}
-                                    title="Criar Sorteio"
+                                </div>
+                                {/* Linha 2: Palestrante + Data + Stats */}
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 ml-6">
+                                  {talk.speaker && <span className="truncate">{talk.speaker}</span>}
+                                  {talk.speaker && (talk.startTime || talk.endTime) && <span>•</span>}
+                                  {(talk.startTime || talk.endTime) && (
+                                    <span className="shrink-0">
+                                      {talk.startTime && talk.endTime
+                                        ? `${formatTime(talk.startTime)}-${formatTime(talk.endTime)}`
+                                        : talk.startTime
+                                          ? formatTime(talk.startTime)
+                                          : `até ${formatTime(talk.endTime)}`
+                                      }
+                                    </span>
+                                  )}
+                                  <span>•</span>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleOpenAttendance(talk) }}
+                                    className="flex items-center gap-0.5 hover:text-primary"
                                   >
-                                    <Gift className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={() => handleOpenUpload(talk.id)}
-                                    title="Importar Presenças"
-                                  >
-                                    <Upload className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={() => handleOpenEditTalk(talk, track)}
-                                  >
-                                    <Edit className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                    onClick={() => handleOpenDeleteTalk(talk)}
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
+                                    <Users className="h-3 w-3" />{talk.attendanceCount}
+                                  </button>
+                                  <span className="flex items-center gap-0.5">
+                                    <Trophy className="h-3 w-3" />{talk.raffleCount}
+                                  </span>
                                 </div>
                               </div>
                             </div>

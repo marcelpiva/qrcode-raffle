@@ -5,6 +5,22 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.0.3] - 2025-12-05
+
+### Melhorado
+
+- **Admin mobile responsive** - Painel administrativo otimizado para mobile
+  - Cards de palestras com layout dedicado para mobile (título, speaker, stats em linhas compactas)
+  - Botões de ação menores (24px) no mobile
+  - Cards de trilhas com header compacto
+  - Header do evento com layout de 2 linhas no mobile
+
+- **RaffleWizardDialog mobile** - Dialog de criação de sorteio sem scroll horizontal
+  - Botões de duração e contagem de palestras em grid 5 colunas
+  - Labels mais curtos ("Todos", "15m" em vez de "Sem filtro", "15min")
+  - Inputs de horário mais compactos no mobile
+  - Checkbox "permitir inscrições por link" com texto reduzido
+
 ## [2.0.2] - 2025-12-05
 
 ### Corrigido

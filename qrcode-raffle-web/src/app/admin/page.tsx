@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Users, Trophy, Calendar, Trash2, BarChart3, Layers, ChevronRight } from 'lucide-react'
+import { Plus, Users, Trophy, Calendar, Trash2, BarChart3, Layers, ChevronRight, Mic2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -117,24 +117,25 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Gerencie seus eventos e sorteios</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Gerencie seus eventos e sorteios</p>
         </div>
         <div className="flex items-center gap-2">
           <Link href="/admin/ranking">
-            <Button variant="outline">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Ranking
+            <Button variant="outline" size="sm" className="sm:size-default">
+              <BarChart3 className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Ranking</span>
             </Button>
           </Link>
           <Button
             onClick={() => setDialogOpen(true)}
-            className="bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+            size="sm"
+            className="sm:size-default bg-gradient-to-r from-primary to-secondary hover:opacity-90"
           >
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Evento
+            <Plus className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Novo Evento</span>
           </Button>
         </div>
       </div>
@@ -205,42 +206,44 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
-                <div className="flex items-center gap-4 text-sm">
+                <div className="flex flex-wrap items-center gap-3 text-sm">
                   <div className="flex items-center gap-1.5 text-muted-foreground">
                     <Layers className="h-4 w-4" />
                     <span>{event.trackCount} {pluralize(event.trackCount, 'trilha', 'trilhas')}</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-muted-foreground">
                     <Users className="h-4 w-4" />
-                    <span>{event.attendanceCount} {pluralize(event.attendanceCount, 'presença', 'presenças')}</span>
+                    <span>{event.attendanceCount}</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-muted-foreground">
                     <Trophy className="h-4 w-4" />
-                    <span>{event.raffleCount} {pluralize(event.raffleCount, 'sorteio', 'sorteios')}</span>
+                    <span>{event.raffleCount}</span>
                   </div>
                 </div>
 
                 {event.tracks.length > 0 && (
                   <div className="space-y-1">
-                    {event.tracks.slice(0, 3).map((track) => (
+                    {event.tracks.slice(0, 2).map((track) => (
                       <div
                         key={track.id}
-                        className="flex items-center justify-between text-xs text-muted-foreground py-1 px-2 rounded bg-muted/50"
+                        className="flex items-center justify-between gap-2 text-xs text-muted-foreground py-1.5 px-2 rounded bg-muted/50"
                       >
-                        <span className="truncate">{track.title}</span>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            {track.talkCount} {pluralize(track.talkCount, 'palestra', 'palestras')}
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            {track.attendanceCount} {pluralize(track.attendanceCount, 'presença', 'presenças')}
-                          </Badge>
+                        <span className="truncate flex-1 min-w-0">{track.title}</span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="flex items-center gap-1">
+                            <Mic2 className="h-3 w-3" />
+                            {track.talkCount}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            {track.attendanceCount}
+                          </span>
                         </div>
                       </div>
                     ))}
-                    {event.tracks.length > 3 && (
+                    {event.tracks.length > 2 && (
                       <div className="text-xs text-muted-foreground text-center py-1">
-                        +{event.tracks.length - 3} {pluralize(event.tracks.length - 3, 'trilha', 'trilhas')}
+                        +{event.tracks.length - 2} {pluralize(event.tracks.length - 2, 'trilha', 'trilhas')}
                       </div>
                     )}
                   </div>
