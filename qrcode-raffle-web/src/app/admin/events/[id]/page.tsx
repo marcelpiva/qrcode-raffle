@@ -534,14 +534,18 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                         {track.talks.map((talk) => (
                           <div key={talk.id} className="border rounded-lg overflow-hidden">
                             <div
-                              className="p-3 bg-muted/30 cursor-pointer flex items-center justify-between"
-                              onClick={() => toggleTalkExpanded(talk.id)}
+                              className={`p-3 bg-muted/30 flex items-center justify-between ${talk.raffleCount > 0 ? 'cursor-pointer' : ''}`}
+                              onClick={() => talk.raffleCount > 0 && toggleTalkExpanded(talk.id)}
                             >
                               <div className="flex items-center gap-3">
-                                {expandedTalks.has(talk.id) ? (
-                                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                {talk.raffleCount > 0 ? (
+                                  expandedTalks.has(talk.id) ? (
+                                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                  ) : (
+                                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                  )
                                 ) : (
-                                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                  <div className="w-4" /> // Spacer para manter alinhamento
                                 )}
                                 <div>
                                   <div className="flex items-center gap-2">

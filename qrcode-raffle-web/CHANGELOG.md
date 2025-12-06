@@ -5,6 +5,26 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.0.2] - 2025-12-05
+
+### Corrigido
+
+- **Contagem de presenças únicas em todos os endpoints** - Todos os endpoints agora usam `normalizeEmail()`
+  - `/api/events` - Lista de eventos com contagem única por evento e trilha
+  - `/api/events/[id]` - Detalhes do evento com contagem única por trilha
+  - `/api/ranking/tracks` e `/api/ranking/events` - Ranking com contagem única
+
+### Alterado
+
+- **Card de palestra sem sorteios** - Removido chevron quando não há sorteios para expandir
+  - Cursor não muda para pointer
+  - Clique não faz nada
+  - Mantém alinhamento visual com spacer
+
+### Melhorado
+
+- **Script de deploy Lightsail** - Removida supressão de erros do npm install para melhor diagnóstico
+
 ## [2.0.1] - 2025-12-05
 
 ### Corrigido

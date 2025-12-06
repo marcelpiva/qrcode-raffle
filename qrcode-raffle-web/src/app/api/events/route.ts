@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { normalizeEmail } from '@/lib/email'
 
 // GET: List all events with tracks, talks, and counts
 export async function GET() {
@@ -43,10 +44,11 @@ export async function GET() {
         let trackRaffles = 0
 
         const talks = track.talks.map(talk => {
-          // Add emails to both track and event sets
+          // Add emails to both track and event sets (normalized)
           talk.attendances.forEach(a => {
-            uniqueEmails.add(a.email.toLowerCase())
-            trackUniqueEmails.add(a.email.toLowerCase())
+            const normalized = normalizeEmail(a.email)
+            uniqueEmails.add(normalized)
+            trackUniqueEmails.add(normalized)
           })
           trackRaffles += talk._count.raffles
           return {

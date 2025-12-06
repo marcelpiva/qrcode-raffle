@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { normalizeEmail } from '@/lib/email'
 
 // GET: Get event details with tracks and talks
 export async function GET(
@@ -18,6 +19,7 @@ export async function GET(
             talks: {
               orderBy: { startTime: 'asc' },
               include: {
+                attendances: { select: { email: true } },
                 _count: { select: { attendances: true, raffles: true } },
                 raffles: {
                   orderBy: { createdAt: 'desc' },
@@ -51,16 +53,20 @@ export async function GET(
     }
 
     // Calculate totals and unique attendees
-    let totalAttendances = 0
     let totalRaffles = event._count.raffles
     const uniqueEmails = new Set<string>()
 
     const tracks = event.tracks.map(track => {
-      let trackAttendances = 0
+      const trackUniqueEmails = new Set<string>()
       let trackRaffles = 0
 
       const talks = track.talks.map(talk => {
-        trackAttendances += talk._count.attendances
+        // Add normalized emails to both track and event sets
+        talk.attendances.forEach(a => {
+          const normalized = normalizeEmail(a.email)
+          uniqueEmails.add(normalized)
+          trackUniqueEmails.add(normalized)
+        })
         trackRaffles += talk._count.raffles
 
         return {
@@ -87,7 +93,6 @@ export async function GET(
         }
       })
 
-      totalAttendances += trackAttendances
       totalRaffles += trackRaffles
 
       return {
@@ -96,29 +101,11 @@ export async function GET(
         startDate: track.startDate.toISOString(),
         endDate: track.endDate.toISOString(),
         talkCount: track._count.talks,
-        attendanceCount: trackAttendances,
+        attendanceCount: trackUniqueEmails.size,
         raffleCount: trackRaffles,
         talks
       }
     })
-
-    // Get unique attendee emails across all talks in the event
-    const allAttendances = await prisma.talkAttendance.findMany({
-      where: {
-        talk: {
-          track: {
-            eventId: id
-          }
-        }
-      },
-      select: {
-        email: true
-      }
-    })
-
-    for (const attendance of allAttendances) {
-      uniqueEmails.add(attendance.email.toLowerCase())
-    }
 
     const uniqueAttendeeCount = uniqueEmails.size
 
@@ -132,7 +119,7 @@ export async function GET(
       updatedAt: event.updatedAt.toISOString(),
       trackCount: event._count.tracks,
       raffleCount: totalRaffles,
-      attendanceCount: totalAttendances,
+      attendanceCount: uniqueAttendeeCount,
       uniqueAttendeeCount,
       tracks,
       raffles: event.raffles.map(raffle => ({

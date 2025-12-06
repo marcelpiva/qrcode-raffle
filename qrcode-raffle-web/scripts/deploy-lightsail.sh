@@ -111,8 +111,7 @@ scp -i "$KEY_PATH" -o StrictHostKeyChecking=no deploy.tar.gz bitnami@${INSTANCE_
 
 # Deploy on instance
 echo -e "${BLUE}Instalando no servidor...${NC}"
-ssh -i "$KEY_PATH" -o StrictHostKeyChecking=no bitnami@${INSTANCE_IP} << 'REMOTE'
-set -e
+ssh -T -i "$KEY_PATH" -o StrictHostKeyChecking=no bitnami@${INSTANCE_IP} << 'REMOTE'
 
 cd /home/bitnami
 mkdir -p app
@@ -148,14 +147,17 @@ fi
 
 # Install dependencies
 echo "Instalando dependências..."
-npm ci --production --silent 2>/dev/null
+npm install --omit=dev
 
 # Generate Prisma
 echo "Gerando Prisma client..."
 npx prisma generate
 
-# Install PM2 globally
-sudo npm install -g pm2 --silent 2>/dev/null || true
+# Install PM2 globally if not present
+if ! command -v pm2 &> /dev/null; then
+    echo "Instalando PM2..."
+    sudo npm install -g pm2
+fi
 
 # Start/restart with PM2
 pm2 delete nava-sorteio 2>/dev/null || true
